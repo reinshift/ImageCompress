@@ -70,27 +70,26 @@ class SVD {
         // 初始化通道矩阵
         const channel = Array(m).fill().map(() => Array(n).fill(0));
 
+        // 计算需要使用的奇异值个数
+        const numSingularValues = Math.ceil(sigma.length * percent);
+
         // 按照Python代码逻辑进行重构
-        for (let k = 0; k < sigma.length; k++) {
+        for (let k = 0; k < numSingularValues && k < sigma.length; k++) {
             // 计算 sigma[k] * U[:, k] * V_T[k, :]
             for (let i = 0; i < m; i++) {
                 for (let j = 0; j < n; j++) {
                     channel[i][j] += sigma[k] * U[i][k] * V_T[k][j];
                 }
             }
+        }
 
-            // 检查是否达到指定的奇异值占比
-            if ((k + 1) / sigma.length > percent) {
-                // 规范化数据：限制在0-255范围内
-                for (let i = 0; i < m; i++) {
-                    for (let j = 0; j < n; j++) {
-                        if (channel[i][j] < 0) channel[i][j] = 0;
-                        if (channel[i][j] > 255) channel[i][j] = 255;
-                        // 四舍五入到整数
-                        channel[i][j] = Math.round(channel[i][j]);
-                    }
-                }
-                break;
+        // 规范化数据：限制在0-255范围内
+        for (let i = 0; i < m; i++) {
+            for (let j = 0; j < n; j++) {
+                if (channel[i][j] < 0) channel[i][j] = 0;
+                if (channel[i][j] > 255) channel[i][j] = 255;
+                // 四舍五入到整数
+                channel[i][j] = Math.round(channel[i][j]);
             }
         }
 
@@ -312,7 +311,7 @@ class ImageProcessor {
 
         // 计算实际使用的奇异值个数
         const avgSigmaLength = Object.values(svdResults).reduce((sum, result) => sum + result.sigma.length, 0) / 3;
-        const retainedValues = Math.floor(avgSigmaLength * percent);
+        const retainedValues = Math.ceil(avgSigmaLength * percent);
 
         return {
             imageData: compressedImageData,

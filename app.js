@@ -6,13 +6,12 @@ class ChartRenderer {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.data = [];
-        this.currentMetric = 'compressionRatio';
 
         // 图表配置
-        this.padding = { top: 40, right: 40, bottom: 60, left: 80 };
+        this.padding = { top: 40, right: 80, bottom: 60, left: 80 };
         this.gridColor = '#e0e0e0';
-        this.lineColor = '#667eea';
-        this.pointColor = '#764ba2';
+        this.compressionRatioColor = '#667eea';
+        this.mseColor = '#e74c3c';
         this.textColor = '#555';
     }
 
@@ -22,11 +21,6 @@ class ChartRenderer {
             compressionRatio: compressionRatio,
             mse: mse
         });
-        this.render();
-    }
-
-    setMetric(metric) {
-        this.currentMetric = metric;
         this.render();
     }
 
@@ -49,26 +43,45 @@ class ChartRenderer {
         // 计算数据范围
         const xMin = 0;
         const xMax = 100;
-        const yValues = this.data.map(d => d[this.currentMetric]);
-        const yMin = Math.min(0, Math.min(...yValues));
-        const yMax = Math.max(...yValues);
-        const yRange = yMax - yMin;
-        const yPadding = yRange * 0.1;
+
+        // 压缩比范围 (左Y轴)
+        const compressionRatios = this.data.map(d => d.compressionRatio);
+        const compressionMin = Math.min(0, Math.min(...compressionRatios));
+        const compressionMax = Math.max(...compressionRatios);
+        const compressionRange = compressionMax - compressionMin;
+        const compressionPadding = compressionRange * 0.1;
+
+        // MSE范围 (右Y轴) - 使用对数缩放来更好地显示
+        const mseValues = this.data.map(d => d.mse);
+        const mseMin = Math.min(...mseValues);
+        const mseMax = Math.max(...mseValues);
+        const mseRange = mseMax - mseMin;
+        const msePadding = mseRange * 0.1;
 
         // 绘制网格和坐标轴
-        this.drawGrid(chartWidth, chartHeight, xMin, xMax, yMin - yPadding, yMax + yPadding);
+        this.drawGrid(chartWidth, chartHeight, xMin, xMax,
+                     compressionMin - compressionPadding, compressionMax + compressionPadding,
+                     mseMin - msePadding, mseMax + msePadding);
 
-        // 绘制数据线
-        this.drawLine(chartWidth, chartHeight, xMin, xMax, yMin - yPadding, yMax + yPadding);
+        // 绘制压缩比数据线和点
+        this.drawCompressionRatioLine(chartWidth, chartHeight, xMin, xMax,
+                                    compressionMin - compressionPadding, compressionMax + compressionPadding);
+        this.drawCompressionRatioPoints(chartWidth, chartHeight, xMin, xMax,
+                                      compressionMin - compressionPadding, compressionMax + compressionPadding);
 
-        // 绘制数据点
-        this.drawPoints(chartWidth, chartHeight, xMin, xMax, yMin - yPadding, yMax + yPadding);
+        // 绘制MSE数据线和点
+        this.drawMSELine(chartWidth, chartHeight, xMin, xMax,
+                        mseMin - msePadding, mseMax + msePadding);
+        this.drawMSEPoints(chartWidth, chartHeight, xMin, xMax,
+                          mseMin - msePadding, mseMax + msePadding);
 
         // 绘制标签
-        this.drawLabels(chartWidth, chartHeight, yMin - yPadding, yMax + yPadding);
+        this.drawLabels(chartWidth, chartHeight,
+                       compressionMin - compressionPadding, compressionMax + compressionPadding,
+                       mseMin - msePadding, mseMax + msePadding);
     }
 
-    drawGrid(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+    drawGrid(chartWidth, chartHeight, xMin, xMax, compressionMin, compressionMax, mseMin, mseMax) {
         this.ctx.strokeStyle = this.gridColor;
         this.ctx.lineWidth = 1;
 
@@ -100,17 +113,25 @@ class ChartRenderer {
         this.ctx.lineTo(this.padding.left + chartWidth, this.padding.top + chartHeight);
         this.ctx.stroke();
 
-        // Y轴
+        // 左Y轴 (压缩比)
+        this.ctx.strokeStyle = this.compressionRatioColor;
         this.ctx.beginPath();
         this.ctx.moveTo(this.padding.left, this.padding.top);
         this.ctx.lineTo(this.padding.left, this.padding.top + chartHeight);
         this.ctx.stroke();
+
+        // 右Y轴 (MSE)
+        this.ctx.strokeStyle = this.mseColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.padding.left + chartWidth, this.padding.top);
+        this.ctx.lineTo(this.padding.left + chartWidth, this.padding.top + chartHeight);
+        this.ctx.stroke();
     }
 
-    drawLine(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+    drawCompressionRatioLine(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
         if (this.data.length < 2) return;
 
-        this.ctx.strokeStyle = this.lineColor;
+        this.ctx.strokeStyle = this.compressionRatioColor;
         this.ctx.lineWidth = 3;
         this.ctx.beginPath();
 
@@ -119,7 +140,7 @@ class ChartRenderer {
 
         sortedData.forEach((point, index) => {
             const x = this.padding.left + ((point.singularValueRatio - xMin) / (xMax - xMin)) * chartWidth;
-            const y = this.padding.top + chartHeight - ((point[this.currentMetric] - yMin) / (yMax - yMin)) * chartHeight;
+            const y = this.padding.top + chartHeight - ((point.compressionRatio - yMin) / (yMax - yMin)) * chartHeight;
 
             if (index === 0) {
                 this.ctx.moveTo(x, y);
@@ -131,25 +152,62 @@ class ChartRenderer {
         this.ctx.stroke();
     }
 
-    drawPoints(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
-        this.ctx.fillStyle = this.pointColor;
+    drawCompressionRatioPoints(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+        this.ctx.fillStyle = this.compressionRatioColor;
 
         this.data.forEach(point => {
             const x = this.padding.left + ((point.singularValueRatio - xMin) / (xMax - xMin)) * chartWidth;
-            const y = this.padding.top + chartHeight - ((point[this.currentMetric] - yMin) / (yMax - yMin)) * chartHeight;
+            const y = this.padding.top + chartHeight - ((point.compressionRatio - yMin) / (yMax - yMin)) * chartHeight;
 
             this.ctx.beginPath();
-            this.ctx.arc(x, y, 6, 0, 2 * Math.PI);
+            this.ctx.arc(x, y, 5, 0, 2 * Math.PI);
             this.ctx.fill();
         });
     }
 
-    drawLabels(chartWidth, chartHeight, yMin, yMax) {
-        this.ctx.fillStyle = this.textColor;
+    drawMSELine(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+        if (this.data.length < 2) return;
+
+        this.ctx.strokeStyle = this.mseColor;
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+
+        // 按x值排序
+        const sortedData = [...this.data].sort((a, b) => a.singularValueRatio - b.singularValueRatio);
+
+        sortedData.forEach((point, index) => {
+            const x = this.padding.left + ((point.singularValueRatio - xMin) / (xMax - xMin)) * chartWidth;
+            const y = this.padding.top + chartHeight - ((point.mse - yMin) / (yMax - yMin)) * chartHeight;
+
+            if (index === 0) {
+                this.ctx.moveTo(x, y);
+            } else {
+                this.ctx.lineTo(x, y);
+            }
+        });
+
+        this.ctx.stroke();
+    }
+
+    drawMSEPoints(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+        this.ctx.fillStyle = this.mseColor;
+
+        this.data.forEach(point => {
+            const x = this.padding.left + ((point.singularValueRatio - xMin) / (xMax - xMin)) * chartWidth;
+            const y = this.padding.top + chartHeight - ((point.mse - yMin) / (yMax - yMin)) * chartHeight;
+
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            this.ctx.fill();
+        });
+    }
+
+    drawLabels(chartWidth, chartHeight, compressionMin, compressionMax, mseMin, mseMax) {
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
 
         // X轴标签
+        this.ctx.fillStyle = this.textColor;
         for (let i = 0; i <= 10; i++) {
             const x = this.padding.left + (i / 10) * chartWidth;
             const value = (i * 10).toString() + '%';
@@ -160,23 +218,43 @@ class ChartRenderer {
         this.ctx.font = '14px Arial';
         this.ctx.fillText('奇异值保留比例', this.padding.left + chartWidth / 2, this.padding.top + chartHeight + 45);
 
-        // Y轴标签
+        // 左Y轴标签 (压缩比)
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'right';
+        this.ctx.fillStyle = this.compressionRatioColor;
         for (let i = 0; i <= 10; i++) {
             const y = this.padding.top + chartHeight - (i / 10) * chartHeight;
-            const value = (yMin + (yMax - yMin) * (i / 10)).toFixed(1);
+            const value = (compressionMin + (compressionMax - compressionMin) * (i / 10)).toFixed(1);
             this.ctx.fillText(value, this.padding.left - 10, y + 4);
         }
 
-        // Y轴标题
+        // 右Y轴标签 (MSE)
+        this.ctx.textAlign = 'left';
+        this.ctx.fillStyle = this.mseColor;
+        for (let i = 0; i <= 10; i++) {
+            const y = this.padding.top + chartHeight - (i / 10) * chartHeight;
+            const value = (mseMin + (mseMax - mseMin) * (i / 10)).toFixed(1);
+            this.ctx.fillText(value, this.padding.left + chartWidth + 10, y + 4);
+        }
+
+        // 左Y轴标题 (压缩比)
         this.ctx.save();
         this.ctx.translate(20, this.padding.top + chartHeight / 2);
         this.ctx.rotate(-Math.PI / 2);
         this.ctx.font = '14px Arial';
         this.ctx.textAlign = 'center';
-        const yLabel = this.currentMetric === 'compressionRatio' ? '压缩比 (%)' : '均方误差';
-        this.ctx.fillText(yLabel, 0, 0);
+        this.ctx.fillStyle = this.compressionRatioColor;
+        this.ctx.fillText('压缩比 (%)', 0, 0);
+        this.ctx.restore();
+
+        // 右Y轴标题 (MSE)
+        this.ctx.save();
+        this.ctx.translate(this.canvas.width - 20, this.padding.top + chartHeight / 2);
+        this.ctx.rotate(Math.PI / 2);
+        this.ctx.font = '14px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillStyle = this.mseColor;
+        this.ctx.fillText('均方误差 (px²)', 0, 0);
         this.ctx.restore();
     }
 }
@@ -230,7 +308,6 @@ class ImageCompressorApp {
         this.dashboardSection = document.getElementById('dashboardSection');
         this.chartCanvas = document.getElementById('chartCanvas');
         this.chartPlaceholder = document.getElementById('chartPlaceholder');
-        this.metricSelect = document.getElementById('metricSelect');
         this.resetDashboard = document.getElementById('resetDashboard');
     }
     
@@ -279,10 +356,6 @@ class ImageCompressorApp {
         });
 
         // 看板相关事件
-        this.metricSelect.addEventListener('change', (e) => {
-            this.chart.setMetric(e.target.value);
-        });
-
         this.resetDashboard.addEventListener('click', () => {
             this.resetChart();
         });
