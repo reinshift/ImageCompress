@@ -1,0 +1,490 @@
+/* 重置样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #ffffff;
+    min-height: 100vh;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 头部样式 */
+.header {
+    text-align: center;
+    margin-bottom: 40px;
+    color: #333;
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    margin-bottom: 10px;
+}
+
+.header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+/* 主要内容区域 */
+.main {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e9ecef;
+}
+
+/* 上传区域 */
+.upload-section {
+    margin-bottom: 30px;
+}
+
+.upload-area {
+    border: 3px dashed #ddd;
+    border-radius: 12px;
+    padding: 60px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #fafafa;
+}
+
+.upload-area:hover {
+    border-color: #667eea;
+    background: #f0f4ff;
+}
+
+.upload-area.dragover {
+    border-color: #667eea;
+    background: #e8f2ff;
+    transform: scale(1.02);
+}
+
+.upload-content .upload-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
+
+.upload-content p {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    color: #666;
+}
+
+.upload-hint {
+    font-size: 0.9rem !important;
+    color: #999 !important;
+}
+
+/* 占位图样式 */
+.placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 6px;
+    color: #6c757d;
+}
+
+.placeholder-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.7;
+}
+
+.placeholder p {
+    font-size: 1rem;
+    margin: 0;
+    opacity: 0.8;
+}
+
+/* 控制面板 */
+.control-panel {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border: 1px solid #e9ecef;
+}
+
+.control-group {
+    margin-bottom: 20px;
+}
+
+.control-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #555;
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #ddd;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #667eea;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #667eea;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+#ratioValue {
+    font-weight: 600;
+    color: #667eea;
+    min-width: 50px;
+}
+
+/* 按钮样式 */
+.compress-btn, .download-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.compress-btn:hover, .download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.compress-btn:active, .download-btn:active {
+    transform: translateY(0);
+}
+
+/* 图像对比区域 */
+.comparison-section {
+    margin-top: 30px;
+}
+
+.image-comparison {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.image-container {
+    flex: 1;
+    text-align: center;
+}
+
+.image-container h3 {
+    margin-bottom: 15px;
+    color: #555;
+    font-weight: 600;
+}
+
+.image-wrapper {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border: 2px solid #eee;
+}
+
+.image-wrapper img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.image-info {
+    margin-top: 15px;
+    text-align: left;
+}
+
+.image-info p {
+    margin-bottom: 5px;
+    color: #666;
+}
+
+.image-info span {
+    font-weight: 600;
+    color: #333;
+}
+
+.arrow {
+    font-size: 2rem;
+    color: #667eea;
+    font-weight: bold;
+}
+
+.download-section {
+    text-align: center;
+}
+
+/* 加载指示器 */
+.loading {
+    text-align: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 进度条样式 */
+.progress-container {
+    margin-top: 20px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 20px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.progress-text {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* 底部 */
+.footer {
+    text-align: center;
+    margin-top: 40px;
+    color: #666;
+    opacity: 0.8;
+}
+
+/* 数据看板样式 */
+.dashboard-section {
+    margin-top: 30px;
+    background: white;
+    border-radius: 8px;
+    padding: 30px;
+    border: 1px solid #e9ecef;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+}
+
+.dashboard-section[style*="block"] {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.dashboard-header h3 {
+    color: #555;
+    font-weight: 600;
+    margin: 0;
+}
+
+.dashboard-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.metric-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.metric-selector label {
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+}
+
+.metric-select {
+    padding: 8px 12px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.9rem;
+    color: #555;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.metric-select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.reset-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.reset-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+.chart-container {
+    position: relative;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border: 2px solid #eee;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#chartCanvas {
+    max-width: 100%;
+    height: auto;
+    display: none;
+}
+
+.chart-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    text-align: center;
+}
+
+.chart-placeholder .placeholder-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    opacity: 0.7;
+}
+
+.chart-placeholder p {
+    font-size: 1.1rem;
+    margin: 0 0 10px 0;
+    opacity: 0.8;
+}
+
+.chart-placeholder .chart-hint {
+    font-size: 0.9rem !important;
+    opacity: 0.6 !important;
+    max-width: 400px;
+    line-height: 1.4;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    .main {
+        padding: 20px;
+    }
+
+    .image-comparison {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .arrow {
+        transform: rotate(90deg);
+    }
+
+    .header h1 {
+        font-size: 2rem;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dashboard-controls {
+        justify-content: space-between;
+    }
+
+    .chart-container {
+        padding: 15px;
+        min-height: 300px;
+    }
+
+    #chartCanvas {
+        width: 100% !important;
+        height: auto !important;
+        max-width: 600px;
+    }
+
+    .dashboard-section {
+        padding: 20px;
+    }
+}

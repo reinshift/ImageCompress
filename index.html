@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVD图像压缩演示</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>SVD图像压缩演示</h1>
+            <p>使用奇异值分解(SVD)算法压缩图像</p>
+        </header>
+
+        <main class="main">
+            <!-- 上传区域 -->
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <div class="upload-icon">📁</div>
+                        <p>点击或拖拽图片到此处上传</p>
+                        <p class="upload-hint">支持 JPG, PNG, GIF 格式</p>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*" hidden>
+                </div>
+            </section>
+
+            <!-- 控制面板 -->
+            <section class="control-panel" id="controlPanel" style="display: none;">
+                <div class="control-group">
+                    <label for="compressionRatio">奇异值保留比例:</label>
+                    <div class="slider-container">
+                        <input type="range" id="compressionRatio" min="1" max="100" value="50" class="slider">
+                        <span id="ratioValue">50%</span>
+                    </div>
+                </div>
+                <button id="compressBtn" class="compress-btn">开始压缩</button>
+            </section>
+
+            <!-- 图像对比区域 -->
+            <section class="comparison-section" id="comparisonSection" style="display: none;">
+                <div class="image-comparison">
+                    <div class="image-container">
+                        <h3>原始图像</h3>
+                        <div class="image-wrapper">
+                            <img id="originalImage" alt="原始图像">
+                            <div class="image-info">
+                                <p>尺寸: <span id="originalSize">-</span></p>
+                                <p>大小: <span id="originalFileSize">-</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arrow">→</div>
+
+                    <div class="image-container">
+                        <h3>压缩图像</h3>
+                        <div class="image-wrapper" id="compressedWrapper">
+                            <div class="placeholder" id="placeholder">
+                                <div class="placeholder-icon">🖼️</div>
+                                <p>压缩后的图像将显示在这里</p>
+                            </div>
+                            <img id="compressedImage" alt="压缩图像" style="display: none;">
+                            <div class="image-info" id="compressedInfo" style="display: none;">
+                                <p>保留奇异值: <span id="retainedValues">-</span></p>
+                                <p>压缩比: <span id="compressionRatioResult">-</span></p>
+                                <p>均方误差: <span id="mseResult">-</span></p>
+                                <p>大小: <span id="compressedFileSize">-</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="download-section" id="downloadSection" style="display: none;">
+                    <button id="downloadBtn" class="download-btn">下载压缩图像</button>
+                </div>
+            </section>
+
+            <!-- 数据看板区域 -->
+            <section class="dashboard-section" id="dashboardSection" style="display: none;">
+                <div class="dashboard-header">
+                    <h3>数据分析看板</h3>
+                    <div class="dashboard-controls">
+                        <div class="metric-selector">
+                            <label for="metricSelect">显示指标:</label>
+                            <select id="metricSelect" class="metric-select">
+                                <option value="compressionRatio">压缩比 (%)</option>
+                                <option value="mse">均方误差</option>
+                            </select>
+                        </div>
+                        <button id="resetDashboard" class="reset-btn">重置看板</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chartCanvas" width="800" height="400"></canvas>
+                    <div class="chart-placeholder" id="chartPlaceholder">
+                        <div class="placeholder-icon">📊</div>
+                        <p>开始压缩图像以查看数据趋势</p>
+                        <p class="chart-hint">每次压缩都会在图表中添加一个数据点，显示奇异值占比与压缩效果的关系</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 加载指示器 -->
+            <div class="loading" id="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p id="loadingText">正在压缩图像，请稍候...</p>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="progress-text" id="progressText">0%</div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>基于奇异值分解(SVD)的图像压缩算法演示</p>
+        </footer>
+    </div>
+
+    <script src="svd.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
