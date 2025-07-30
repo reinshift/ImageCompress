@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVD图像压缩原理 - 奇异值分解理论基础</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* 原理页面特定样式 */
+        .theory-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .theory-content {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+            line-height: 1.8;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #333;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section h3 {
+            color: #555;
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 25px 0 15px 0;
+        }
+
+        .section p {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        .formula-box {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .formula {
+            font-size: 1.3rem;
+            color: #333;
+            font-family: 'Times New Roman', serif;
+            margin: 10px 0;
+        }
+
+        .formula-desc {
+            font-size: 0.95rem;
+            color: #666;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .highlight-box p {
+            margin: 0;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .nav-bar {
+            background: white;
+            padding: 15px 0;
+            border-bottom: 1px solid #e9ecef;
+            margin-bottom: 30px;
+        }
+
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .nav-logo {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+            text-decoration: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+        }
+
+        .nav-link {
+            color: #666;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: #667eea;
+        }
+
+        .nav-link.active {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .back-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            margin-top: 30px;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .matrix-notation {
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .theory-container {
+                padding: 10px;
+            }
+            
+            .theory-content {
+                padding: 20px;
+            }
+            
+            .nav-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .nav-links {
+                gap: 20px;
+            }
+            
+            .section h2 {
+                font-size: 1.5rem;
+            }
+            
+            .formula {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="nav-bar">
+        <div class="nav-content">
+            <a href="index.html" class="nav-logo">🖼️ SVD图像压缩</a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">压缩演示</a>
+                <a href="theory.html" class="nav-link active">算法原理</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="theory-container">
+        <header class="header">
+            <h1>SVD图像压缩算法原理</h1>
+            <p>奇异值分解(Singular Value Decomposition)的数学基础与图像压缩应用</p>
+        </header>
+
+        <main class="theory-content">
+            <!-- 引言 -->
+            <section class="section">
+                <h2>算法概述</h2>
+                <p>奇异值分解(SVD)是线性代数中一种重要的矩阵分解方法，可以针对任意形态的矩阵作特征值分解。现实应用场景中的数据确实不太可能都是方阵，而多是行数、列数不等的数据矩阵，因此，奇异值分解具有广泛的应用价值。</p>
+                
+                <p>图像压缩是计算机学科学术界和工程界关注的热门研究领域之一，目前图像压缩的方法主要分为两大类：<strong>无损压缩</strong>和<strong>有损压缩</strong>。奇异值分解方法是线性代数数学学科中一种数据压缩方法，可以将大规模的矩阵在分解为矩阵的乘法表示后，用一定比例的特征数据矩阵来表示原来的大规模矩阵，从而达到压缩的目的。</p>
+
+                <div class="highlight-box">
+                    <p><strong>核心思想：</strong>数据压缩的主要思想本质上就是用有限的、具有代表性的数据成分来代表整体的数据，从而实现存储空间的节约。由于在数据压缩的过程中我们舍弃了一部分数据，因此这是一种有损数据压缩。</p>
+                </div>
+            </section>
+
+            <!-- SVD数学原理 -->
+            <section class="section">
+                <h2>奇异值分解数学原理</h2>
+                
+                <h3>基本定理</h3>
+                <p>奇异值分解可以针对任意形态的矩阵做特征值分解。设矩阵 <span class="matrix-notation">A ∈ ℝ<sup>m×n</sup></span>，则存在 <span class="matrix-notation">m</span> 阶酉矩阵 <span class="matrix-notation">U</span> 和 <span class="matrix-notation">n</span> 阶酉矩阵 <span class="matrix-notation">V</span>，使得：</p>
+
+                <div class="formula-box">
+                    <div class="formula">
+                        <span class="matrix-notation">U*AV = </span>
+                        <span style="border: 1px solid #ccc; padding: 8px 12px; display: inline-block; background: #f9f9f9;">
+                            <span style="display: block; text-align: center; line-height: 1.5;">Δ<sub>r×r</sub> &nbsp;&nbsp; 0</span>
+                            <span style="display: block; text-align: center; line-height: 1.5;">0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0</span>
+                        </span>
+                    </div>
+                    <div class="formula" style="margin-top: 20px;">
+                        <span class="matrix-notation">A = U</span>
+                        <span style="border: 1px solid #ccc; padding: 8px 12px; display: inline-block; background: #f9f9f9;">
+                            <span style="display: block; text-align: center; line-height: 1.5;">Δ<sub>r×r</sub> &nbsp;&nbsp; 0</span>
+                            <span style="display: block; text-align: center; line-height: 1.5;">0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0</span>
+                        </span>
+                        <span class="matrix-notation">V*</span>
+                    </div>
+                    <div class="formula-desc">
+                        其中 Δ<sub>r×r</sub> = diag(σ₁, σ₂, ..., σᵣ) 为A的全部非零奇异值，分块矩阵表示为对角块和零块
+                    </div>
+                </div>
+
+                <h3>奇异值排序</h3>
+                <p>根据上述矩阵奇异值分解原理，设矩阵 <span class="matrix-notation">A</span> 的秩为 <span class="matrix-notation">r</span>，A的全部奇异值为：</p>
+
+                <div class="formula-box">
+                    <div class="formula">
+                        <span class="matrix-notation">σ₁ ≥ σ₂ ≥ ⋯ ≥ σᵣ > σᵣ₊₁ = ⋯ = σₙ = 0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 矩阵重构 -->
+            <section class="section">
+                <h2>矩阵重构与压缩</h2>
+                
+                <h3>完整重构</h3>
+                <p>矩阵 <span class="matrix-notation">A</span> 可以表示成 <span class="matrix-notation">r</span> 个秩1矩阵之和：</p>
+
+                <div class="formula-box">
+                    <div class="formula">
+                        <span class="matrix-notation">A = σ₁u₁v₁* + σ₂u₂v₂* + ⋯ + σᵣuᵣvᵣ*</span>
+                    </div>
+                    <div class="formula-desc">
+                        其中 uᵢ 和 vᵢ 分别为左奇异向量和右奇异向量
+                    </div>
+                </div>
+
+                <h3>近似重构（压缩核心）</h3>
+                <p>在很多情况下，前10%甚至1%的奇异值的和就占了全部奇异值之和的99%以上的比例。也就是说，我们可以用最大的k个奇异值和对应的左右奇异向量来近似描述矩阵：</p>
+
+                <div class="formula-box">
+                    <div class="formula">
+                        <span class="matrix-notation">A ≈ σ₁u₁v₁* + σ₂u₂v₂* + ⋯ + σₖuₖvₖ*</span>
+                    </div>
+                    <div class="formula-desc">
+                        通过选择合适的 k 值，可以在保持主要信息的同时大幅减少存储需求
+                    </div>
+                </div>
+
+                <div class="highlight-box">
+                    <p><strong>压缩效果：</strong>原始矩阵需要存储 m×n 个元素，而压缩后只需存储 k×(m+n+1) 个元素。当 k << min(m,n) 时，可以实现显著的压缩效果。</p>
+                </div>
+            </section>
+
+            <!-- 图像压缩应用 -->
+            <section class="section">
+                <h2>图像压缩中的应用</h2>
+                
+                <h3>彩色图像处理</h3>
+                <p>对于彩色图像，我们将其分解为红(R)、绿(G)、蓝(B)三个颜色通道，每个通道都是一个二维矩阵。对每个颜色通道分别进行SVD分解：</p>
+
+                <div class="formula-box">
+                    <div class="formula">
+                        <span class="matrix-notation">R = U<sub>R</sub>Σ<sub>R</sub>V<sub>R</sub>*</span><br>
+                        <span class="matrix-notation">G = U<sub>G</sub>Σ<sub>G</sub>V<sub>G</sub>*</span><br>
+                        <span class="matrix-notation">B = U<sub>B</sub>Σ<sub>B</sub>V<sub>B</sub>*</span>
+                    </div>
+                </div>
+
+                <h3>压缩比与质量平衡</h3>
+                <p>通过调整保留的奇异值比例，可以在压缩比和图像质量之间找到平衡：</p>
+                <ul style="color: #666; font-size: 1.1rem; margin-left: 20px;">
+                    <li><strong>高保留比例(80%-100%)</strong>：图像质量高，压缩比较低</li>
+                    <li><strong>中等保留比例(30%-80%)</strong>：平衡的压缩效果和图像质量</li>
+                    <li><strong>低保留比例(10%-30%)</strong>：高压缩比，但图像质量下降明显</li>
+                </ul>
+
+                <h3>质量评估指标</h3>
+                <p>我们使用均方误差(MSE)来评估压缩质量：</p>
+
+                <div class="formula-box">
+                    <div class="formula">
+                        <span class="matrix-notation">MSE = (1/mn) Σᵢ₌₁ᵐ Σⱼ₌₁ⁿ [A(i,j) - Â(i,j)]²</span>
+                    </div>
+                    <div class="formula-desc">
+                        其中 A 为原始图像矩阵，Â 为压缩重构后的图像矩阵
+                    </div>
+                </div>
+            </section>
+
+            <!-- 算法拓展 -->
+            <section class="section">
+                <h2>算法拓展与变种</h2>
+
+                <h3>Funk-SVD算法</h3>
+                <p>传统的SVD算法要求矩阵是已知的，对于有缺失值的矩阵我们可以用QR分解，用均方差作为损失函数将元素补全。Funk-SVD的目标是让用户的评分和矩阵乘积得到的评分残差尽可能小，和传统SVD不同的一点是<strong>Funk-SVD不要求两个矩阵正交</strong>。</p>
+
+                <div class="highlight-box">
+                    <p><strong>核心特点：</strong>Funk-SVD专门针对稀疏矩阵设计，通过梯度下降等优化方法直接学习用户-物品的潜在因子，无需完整的矩阵分解过程。</p>
+                </div>
+
+                <div class="formula-box">
+                    <div class="formula">
+                        <span class="matrix-notation">min Σ(r<sub>ui</sub> - p<sub>u</sub>q<sub>i</sub><sup>T</sup>)²</span>
+                    </div>
+                    <div class="formula-desc">
+                        其中 r<sub>ui</sub> 为用户u对物品i的真实评分，p<sub>u</sub> 和 q<sub>i</sub> 为学习得到的潜在因子向量
+                    </div>
+                </div>
+
+                <h3>Bias-SVD算法</h3>
+                <p>在Funk-SVD算法火爆之后，出现了很多Funk-SVD的改进版算法。其中Bias算是改进的比较成功的一种算法，和Funk-SVD不同的是，此时我们多了两个偏置项，通过迭代我们最终可以得到P和Q，进而用于推荐，比如网页偏好推荐。</p>
+
+                <div class="formula-box">
+                    <div class="formula">
+                        <span class="matrix-notation">r̂<sub>ui</sub> = μ + b<sub>u</sub> + b<sub>i</sub> + p<sub>u</sub>q<sub>i</sub><sup>T</sup></span>
+                    </div>
+                    <div class="formula-desc">
+                        其中 μ 为全局平均评分，b<sub>u</sub> 为用户偏置，b<sub>i</sub> 为物品偏置
+                    </div>
+                </div>
+
+                <div class="highlight-box">
+                    <p><strong>偏置项意义：</strong>用户偏置反映了用户的评分习惯（如严格或宽松），物品偏置反映了物品的整体质量水平，这使得预测更加准确和个性化。</p>
+                </div>
+
+
+            </section>
+
+            <div style="text-align: center;">
+                <a href="index.html" class="back-btn">返回压缩演示</a>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>基于奇异值分解(SVD)的图像压缩算法原理详解</p>
+        </footer>
+    </div>
+</body>
+</html>
