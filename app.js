@@ -397,6 +397,23 @@ class ImageCompressorApp {
         this.chartCanvas.style.display = 'block';
         this.chartPlaceholder.style.display = 'none';
     }
+
+    smoothScrollToPanel() {
+        // 延迟一小段时间，确保DOM元素已经显示
+        setTimeout(() => {
+            const controlPanel = this.controlPanel;
+            if (controlPanel) {
+                // 计算目标位置，稍微向上偏移一些，避免紧贴顶部
+                const targetPosition = controlPanel.offsetTop - 20;
+
+                // 使用平滑滚动
+                window.scrollTo({
+                    top: targetPosition,
+                    behavior: 'smooth'
+                });
+            }
+        }, 300); // 300ms延迟，让显示动画完成
+    }
     
     handleFileSelect(file) {
         if (!file || !file.type.startsWith('image/')) {
@@ -455,6 +472,9 @@ class ImageCompressorApp {
         this.downloadSection.style.display = 'none';
         this.dashboardSection.style.display = 'none';
         this.resetChart();
+
+        // 优雅滑动到压缩面板
+        this.smoothScrollToPanel();
     }
     
     async compressImage() {
