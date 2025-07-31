@@ -189,6 +189,30 @@ body {
     color: #555;
 }
 
+.method-selector {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.method-selector input[type="radio"] {
+    margin-right: 8px;
+}
+
+.method-selector label {
+    display: inline;
+    font-weight: 500;
+    margin-bottom: 0;
+    cursor: pointer;
+    color: #666;
+}
+
+.method-selector input[type="radio"]:checked + label {
+    color: #667eea;
+    font-weight: 600;
+}
+
 .slider-container {
     display: flex;
     align-items: center;

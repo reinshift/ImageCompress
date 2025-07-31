@@ -15,11 +15,12 @@ class ChartRenderer {
         this.textColor = '#555';
     }
 
-    addDataPoint(singularValueRatio, compressionRatio, mse) {
+    addDataPoint(singularValueRatio, compressionRatio, mse, compressionMethod = 'count') {
         this.data.push({
             singularValueRatio: singularValueRatio,
             compressionRatio: compressionRatio,
-            mse: mse
+            mse: mse,
+            compressionMethod: compressionMethod
         });
         this.render();
     }
@@ -44,17 +45,22 @@ class ChartRenderer {
         const xMin = 0;
         const xMax = 100;
 
-        // 压缩比范围 (左Y轴)
+        // 获取原始数据
         const compressionRatios = this.data.map(d => d.compressionRatio);
-        const compressionMin = Math.min(0, Math.min(...compressionRatios));
-        const compressionMax = Math.max(...compressionRatios);
+        const mseValues = this.data.map(d => d.mse);
+
+        // 对数据进行归一化处理
+        const normalizedData = this.normalizeData(compressionRatios, mseValues);
+
+        // 压缩比范围 (左Y轴) - 使用归一化后的数据
+        const compressionMin = Math.min(0, Math.min(...normalizedData.compressionRatios));
+        const compressionMax = Math.max(...normalizedData.compressionRatios);
         const compressionRange = compressionMax - compressionMin;
         const compressionPadding = compressionRange * 0.1;
 
-        // MSE范围 (右Y轴) - 使用对数缩放来更好地显示
-        const mseValues = this.data.map(d => d.mse);
-        const mseMin = Math.min(...mseValues);
-        const mseMax = Math.max(...mseValues);
+        // MSE范围 (右Y轴) - 使用归一化后的数据
+        const mseMin = Math.min(...normalizedData.mseValues);
+        const mseMax = Math.max(...normalizedData.mseValues);
         const mseRange = mseMax - mseMin;
         const msePadding = mseRange * 0.1;
 
@@ -63,22 +69,100 @@ class ChartRenderer {
                      compressionMin - compressionPadding, compressionMax + compressionPadding,
                      mseMin - msePadding, mseMax + msePadding);
 
-        // 绘制压缩比数据线和点
+        // 绘制压缩比数据线和点 (使用归一化数据)
         this.drawCompressionRatioLine(chartWidth, chartHeight, xMin, xMax,
-                                    compressionMin - compressionPadding, compressionMax + compressionPadding);
+                                    compressionMin - compressionPadding, compressionMax + compressionPadding,
+                                    normalizedData.compressionRatios);
         this.drawCompressionRatioPoints(chartWidth, chartHeight, xMin, xMax,
-                                      compressionMin - compressionPadding, compressionMax + compressionPadding);
+                                      compressionMin - compressionPadding, compressionMax + compressionPadding,
+                                      normalizedData.compressionRatios);
 
-        // 绘制MSE数据线和点
+        // 绘制MSE数据线和点 (使用归一化数据)
         this.drawMSELine(chartWidth, chartHeight, xMin, xMax,
-                        mseMin - msePadding, mseMax + msePadding);
+                        mseMin - msePadding, mseMax + msePadding,
+                        normalizedData.mseValues);
         this.drawMSEPoints(chartWidth, chartHeight, xMin, xMax,
-                          mseMin - msePadding, mseMax + msePadding);
+                          mseMin - msePadding, mseMax + msePadding,
+                          normalizedData.mseValues);
 
-        // 绘制标签
+        // 绘制标签 (显示原始数据范围)
         this.drawLabels(chartWidth, chartHeight,
-                       compressionMin - compressionPadding, compressionMax + compressionPadding,
-                       mseMin - msePadding, mseMax + msePadding);
+                       Math.min(...compressionRatios), Math.max(...compressionRatios),
+                       Math.min(...mseValues), Math.max(...mseValues));
+    }
+
+    /**
+     * 对数据进行归一化处理，确保初始两个点有较大差距，后续点根据新数据重新归一化
+     */
+    normalizeData(compressionRatios, mseValues) {
+        if (compressionRatios.length === 0 || mseValues.length === 0) {
+            return { compressionRatios: [], mseValues: [] };
+        }
+
+        const dataLength = compressionRatios.length;
+
+        // 如果只有1个数据点，将其放在中间位置
+        if (dataLength === 1) {
+            return {
+                compressionRatios: [50],
+                mseValues: [50]
+            };
+        }
+
+        // 如果只有2个数据点，让它们在y轴上有较大差距
+        if (dataLength === 2) {
+            // 确定哪个值更大，让较大的值在上方(80)，较小的值在下方(20)
+            const compRatio1 = compressionRatios[0];
+            const compRatio2 = compressionRatios[1];
+            const mse1 = mseValues[0];
+            const mse2 = mseValues[1];
+
+            let normalizedCompressionRatios, normalizedMseValues;
+
+            // 对压缩比进行分离显示
+            if (compRatio1 >= compRatio2) {
+                normalizedCompressionRatios = [80, 20];
+            } else {
+                normalizedCompressionRatios = [20, 80];
+            }
+
+            // 对MSE进行分离显示
+            if (mse1 >= mse2) {
+                normalizedMseValues = [80, 20];
+            } else {
+                normalizedMseValues = [20, 80];
+            }
+
+            return {
+                compressionRatios: normalizedCompressionRatios,
+                mseValues: normalizedMseValues
+            };
+        }
+
+        // 如果有3个或更多数据点，进行正常的归一化处理
+        const compMin = Math.min(...compressionRatios);
+        const compMax = Math.max(...compressionRatios);
+        const compRange = compMax - compMin;
+
+        const mseMin = Math.min(...mseValues);
+        const mseMax = Math.max(...mseValues);
+        const mseRange = mseMax - mseMin;
+
+        // 归一化到10-90范围，避免点贴边，使视觉效果更好
+        const normalizedCompressionRatios = compressionRatios.map(value => {
+            if (compRange === 0) return 50;
+            return 10 + ((value - compMin) / compRange) * 80;
+        });
+
+        const normalizedMseValues = mseValues.map(value => {
+            if (mseRange === 0) return 50;
+            return 10 + ((value - mseMin) / mseRange) * 80;
+        });
+
+        return {
+            compressionRatios: normalizedCompressionRatios,
+            mseValues: normalizedMseValues
+        };
     }
 
     drawGrid(chartWidth, chartHeight, xMin, xMax, compressionMin, compressionMax, mseMin, mseMax) {
@@ -128,7 +212,7 @@ class ChartRenderer {
         this.ctx.stroke();
     }
 
-    drawCompressionRatioLine(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+    drawCompressionRatioLine(chartWidth, chartHeight, xMin, xMax, yMin, yMax, normalizedValues = null) {
         if (this.data.length < 2) return;
 
         this.ctx.strokeStyle = this.compressionRatioColor;
@@ -137,10 +221,14 @@ class ChartRenderer {
 
         // 按x值排序
         const sortedData = [...this.data].sort((a, b) => a.singularValueRatio - b.singularValueRatio);
+        const values = normalizedValues || this.data.map(d => d.compressionRatio);
 
         sortedData.forEach((point, index) => {
+            const dataIndex = this.data.findIndex(d => d === point);
+            const yValue = normalizedValues ? normalizedValues[dataIndex] : point.compressionRatio;
+
             const x = this.padding.left + ((point.singularValueRatio - xMin) / (xMax - xMin)) * chartWidth;
-            const y = this.padding.top + chartHeight - ((point.compressionRatio - yMin) / (yMax - yMin)) * chartHeight;
+            const y = this.padding.top + chartHeight - ((yValue - yMin) / (yMax - yMin)) * chartHeight;
 
             if (index === 0) {
                 this.ctx.moveTo(x, y);
@@ -152,12 +240,14 @@ class ChartRenderer {
         this.ctx.stroke();
     }
 
-    drawCompressionRatioPoints(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+    drawCompressionRatioPoints(chartWidth, chartHeight, xMin, xMax, yMin, yMax, normalizedValues = null) {
         this.ctx.fillStyle = this.compressionRatioColor;
 
-        this.data.forEach(point => {
+        this.data.forEach((point, index) => {
+            const yValue = normalizedValues ? normalizedValues[index] : point.compressionRatio;
+
             const x = this.padding.left + ((point.singularValueRatio - xMin) / (xMax - xMin)) * chartWidth;
-            const y = this.padding.top + chartHeight - ((point.compressionRatio - yMin) / (yMax - yMin)) * chartHeight;
+            const y = this.padding.top + chartHeight - ((yValue - yMin) / (yMax - yMin)) * chartHeight;
 
             this.ctx.beginPath();
             this.ctx.arc(x, y, 5, 0, 2 * Math.PI);
@@ -165,7 +255,7 @@ class ChartRenderer {
         });
     }
 
-    drawMSELine(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+    drawMSELine(chartWidth, chartHeight, xMin, xMax, yMin, yMax, normalizedValues = null) {
         if (this.data.length < 2) return;
 
         this.ctx.strokeStyle = this.mseColor;
@@ -176,8 +266,11 @@ class ChartRenderer {
         const sortedData = [...this.data].sort((a, b) => a.singularValueRatio - b.singularValueRatio);
 
         sortedData.forEach((point, index) => {
+            const dataIndex = this.data.findIndex(d => d === point);
+            const yValue = normalizedValues ? normalizedValues[dataIndex] : point.mse;
+
             const x = this.padding.left + ((point.singularValueRatio - xMin) / (xMax - xMin)) * chartWidth;
-            const y = this.padding.top + chartHeight - ((point.mse - yMin) / (yMax - yMin)) * chartHeight;
+            const y = this.padding.top + chartHeight - ((yValue - yMin) / (yMax - yMin)) * chartHeight;
 
             if (index === 0) {
                 this.ctx.moveTo(x, y);
@@ -189,12 +282,14 @@ class ChartRenderer {
         this.ctx.stroke();
     }
 
-    drawMSEPoints(chartWidth, chartHeight, xMin, xMax, yMin, yMax) {
+    drawMSEPoints(chartWidth, chartHeight, xMin, xMax, yMin, yMax, normalizedValues = null) {
         this.ctx.fillStyle = this.mseColor;
 
-        this.data.forEach(point => {
+        this.data.forEach((point, index) => {
+            const yValue = normalizedValues ? normalizedValues[index] : point.mse;
+
             const x = this.padding.left + ((point.singularValueRatio - xMin) / (xMax - xMin)) * chartWidth;
-            const y = this.padding.top + chartHeight - ((point.mse - yMin) / (yMax - yMin)) * chartHeight;
+            const y = this.padding.top + chartHeight - ((yValue - yMin) / (yMax - yMin)) * chartHeight;
 
             this.ctx.beginPath();
             this.ctx.arc(x, y, 5, 0, 2 * Math.PI);
@@ -390,8 +485,23 @@ class ImageCompressorApp {
         this.chartPlaceholder.style.display = 'flex';
     }
 
-    addDataPointToChart(singularValueRatio, compressionRatio, mse) {
-        this.chart.addDataPoint(singularValueRatio, compressionRatio, mse);
+    addDataPointToChart(singularValueRatio, compressionRatio, mse, compressionMethod) {
+        // 检查是否已经有相同奇异值比例的数据点
+        const existingPoint = this.chart.data.find(point =>
+            Math.abs(point.singularValueRatio - singularValueRatio) < 0.1
+        );
+
+        if (!existingPoint) {
+            // 如果是新的奇异值比例，为了演示效果，我们可以同时添加两种压缩方式的数据点
+            // 这里我们添加当前的数据点
+            this.chart.addDataPoint(singularValueRatio, compressionRatio, mse, compressionMethod);
+
+            // 如果用户希望看到对比效果，可以在这里添加另一种压缩方式的预估数据点
+            // 但为了准确性，我们只添加实际计算的数据点
+        } else {
+            // 如果已经存在相同比例的数据点，直接添加新的数据点
+            this.chart.addDataPoint(singularValueRatio, compressionRatio, mse, compressionMethod);
+        }
 
         // 显示图表，隐藏占位符
         this.chartCanvas.style.display = 'block';
@@ -491,10 +601,14 @@ class ImageCompressorApp {
         try {
             const compressionRatio = parseInt(this.compressionSlider.value);
 
+            // 获取压缩方式
+            const compressionMethod = document.querySelector('input[name="compressionMethod"]:checked').value;
+
             // 执行SVD压缩，带进度回调
             const result = await ImageProcessor.compressImage(
                 this.originalImageData,
                 compressionRatio,
+                compressionMethod,
                 (progress, message) => this.updateProgress(progress, message)
             );
 
@@ -518,21 +632,21 @@ class ImageCompressorApp {
             // 计算实际压缩后文件大小
             const compressedSize = this.calculateCompressedSize(result.imageData);
 
-            // 计算真正的压缩比：(原图大小 - 压缩后大小) / 原图大小
-            const actualCompressionRatio = ((this.originalFile.size - compressedSize) / this.originalFile.size * 100).toFixed(1);
+            // 计算文件大小压缩比：(原图大小 - 压缩后大小) / 原图大小
+            const fileSizeCompressionRatio = ((this.originalFile.size - compressedSize) / this.originalFile.size * 100).toFixed(1);
 
             // 计算均方误差
             const mse = ImageProcessor.calculateMSE(this.originalImageData, result.imageData);
 
             // 更新结果信息
             this.retainedValues.textContent = `${result.retainedSingularValues} / ${result.totalSingularValues}`;
-            this.compressionRatioResult.textContent = actualCompressionRatio + '%';
+            this.compressionRatioResult.textContent = result.compressionRatio; // 使用数据压缩比
             this.mseResult.textContent = mse.toFixed(2);
             this.compressedFileSize.textContent = this.formatFileSize(compressedSize);
 
             // 添加数据点到看板
             const singularValueRatio = (result.retainedSingularValues / result.totalSingularValues * 100);
-            this.addDataPointToChart(singularValueRatio, parseFloat(actualCompressionRatio), mse);
+            this.addDataPointToChart(singularValueRatio, parseFloat(result.compressionRatio), mse, result.compressionMethod);
 
             // 显示看板
             this.dashboardSection.style.display = 'block';

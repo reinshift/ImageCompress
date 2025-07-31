@@ -40,6 +40,15 @@
             <!-- 控制面板 -->
             <section class="control-panel" id="controlPanel" style="display: none;">
                 <div class="control-group">
+                    <label for="compressionMethod">压缩方式:</label>
+                    <div class="method-selector">
+                        <input type="radio" id="methodCount" name="compressionMethod" value="count" checked>
+                        <label for="methodCount">按奇异值个数占比</label>
+                        <input type="radio" id="methodSum" name="compressionMethod" value="sum">
+                        <label for="methodSum">按奇异值之和占比</label>
+                    </div>
+                </div>
+                <div class="control-group">
                     <label for="compressionRatio">奇异值保留比例:</label>
                     <div class="slider-container">
                         <input type="range" id="compressionRatio" min="1" max="100" value="50" class="slider">

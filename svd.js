@@ -1,11 +1,11 @@
 /**
  * SVD (奇异值分解) 算法实现
- * 用于图像压缩 - 基于真实SVD算法
+ * 用于图像压缩 - 改进的高精度SVD算法
  */
 
 class SVD {
     /**
-     * 使用Jacobi方法进行SVD分解
+     * 使用改进的幂迭代法进行SVD分解
      * @param {number[][]} matrix - 输入矩阵
      * @returns {Object} 包含U, sigma, V_T的对象
      */
@@ -38,7 +38,7 @@ class SVD {
         // 计算U矩阵
         const U = [];
         for (let i = 0; i < Math.min(m, n); i++) {
-            if (sortedSigma[i] > 1e-10) {
+            if (sortedSigma[i] > 1e-12) { // 提高精度阈值
                 // u_i = A * v_i / sigma_i
                 const v_i = V_T[i];
                 const Av = this.multiplyMatrixVector(A, v_i);
@@ -55,9 +55,83 @@ class SVD {
             V_T: V_T
         };
     }
-    
+
     /**
-     * 根据奇异值占比重构矩阵 (基于Python代码逻辑)
+     * 改进的特征值分解 (使用高精度幂迭代法)
+     */
+    static eigenDecomposition(matrix) {
+        const n = matrix.length;
+        const maxIterations = 500; // 增加迭代次数
+        const tolerance = 1e-12;   // 提高精度
+
+        const eigenValues = [];
+        const eigenVectors = [];
+
+        // 复制矩阵
+        let A = matrix.map(row => [...row]);
+
+        for (let k = 0; k < Math.min(n, 50); k++) { // 增加特征值个数
+            // 幂迭代法求主特征值和特征向量
+            let v = new Array(n);
+            // 更好的初始化
+            for (let i = 0; i < n; i++) {
+                v[i] = Math.random() - 0.5;
+            }
+
+            // 归一化初始向量
+            let norm = Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
+            if (norm > tolerance) {
+                v = v.map(val => val / norm);
+            }
+
+            let lambda = 0;
+
+            for (let iter = 0; iter < maxIterations; iter++) {
+                const Av = this.multiplyMatrixVector(A, v);
+
+                // 归一化
+                norm = Math.sqrt(Av.reduce((sum, val) => sum + val * val, 0));
+                if (norm < tolerance) break;
+
+                v = Av.map(val => val / norm);
+
+                // 计算瑞利商
+                const vAv = v.reduce((sum, val, i) => {
+                    let rowSum = 0;
+                    for (let j = 0; j < n; j++) {
+                        rowSum += A[i][j] * v[j];
+                    }
+                    return sum + val * rowSum;
+                }, 0);
+
+                const newLambda = vAv;
+                if (Math.abs(newLambda - lambda) < tolerance) {
+                    lambda = newLambda;
+                    break;
+                }
+                lambda = newLambda;
+            }
+
+            if (Math.abs(lambda) < tolerance) {
+                break;
+            }
+
+            eigenValues.push(lambda);
+            eigenVectors.push([...v]);
+
+            // Deflation: 从矩阵中移除这个特征值的贡献
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    A[i][j] -= lambda * v[i] * v[j];
+                }
+            }
+        }
+
+        return { values: eigenValues, vectors: eigenVectors };
+    }
+
+    /**
+     * 根据奇异值个数占比重构矩阵 (改进的高精度版本)
      * @param {Object} svdResult - SVD分解结果 {U, sigma, V_T}
      * @param {number} percent - 奇异值保留比例 (0-1)
      * @returns {number[][]} 重构的矩阵
@@ -70,11 +144,11 @@ class SVD {
         // 初始化通道矩阵
         const channel = Array(m).fill().map(() => Array(n).fill(0));
 
-        // 计算需要使用的奇异值个数
-        const numSingularValues = Math.ceil(sigma.length * percent);
+        // 计算要保留的奇异值个数
+        const retainCount = Math.max(1, Math.ceil(sigma.length * percent));
 
-        // 按照Python代码逻辑进行重构
-        for (let k = 0; k < numSingularValues && k < sigma.length; k++) {
+        // 按照原始逻辑进行重构，但提高精度
+        for (let k = 0; k < retainCount && k < sigma.length; k++) {
             // 计算 sigma[k] * U[:, k] * V_T[k, :]
             for (let i = 0; i < m; i++) {
                 for (let j = 0; j < n; j++) {
@@ -83,7 +157,7 @@ class SVD {
             }
         }
 
-        // 规范化数据：限制在0-255范围内
+        // 规范化数据：限制在0-255范围内并四舍五入到整数
         for (let i = 0; i < m; i++) {
             for (let j = 0; j < n; j++) {
                 if (channel[i][j] < 0) channel[i][j] = 0;
@@ -95,6 +169,58 @@ class SVD {
 
         return channel;
     }
+
+    /**
+     * 根据奇异值之和占比重构矩阵 (改进的高精度版本)
+     * @param {Object} svdResult - SVD分解结果 {U, sigma, V_T}
+     * @param {number} percent - 奇异值之和保留比例 (0-1)
+     * @returns {number[][]} 重构的矩阵
+     */
+    static getCompressSum(svdResult, percent) {
+        const { U, sigma, V_T } = svdResult;
+        const m = U.length;
+        const n = V_T[0].length;
+
+        // 初始化通道矩阵
+        const channel = Array(m).fill().map(() => Array(n).fill(0));
+
+        // 计算奇异值总和
+        const totalSum = sigma.reduce((sum, sig) => sum + sig, 0);
+        const targetSum = totalSum * percent;
+
+        let currentSum = 0;
+
+        // 按照原始逻辑进行重构
+        for (let i = 0; i < sigma.length; i++) {
+            currentSum += sigma[i];
+
+            // 计算 sigma[i] * U[:, i] * V_T[i, :]
+            for (let row = 0; row < m; row++) {
+                for (let col = 0; col < n; col++) {
+                    channel[row][col] += sigma[i] * U[row][i] * V_T[i][col];
+                }
+            }
+
+            // 若累计奇异值之和超过给定占比，则停止
+            if (currentSum > targetSum) {
+                break;
+            }
+        }
+
+        // 规范化数据：限制在0-255范围内并四舍五入到整数
+        for (let i = 0; i < m; i++) {
+            for (let j = 0; j < n; j++) {
+                if (channel[i][j] < 0) channel[i][j] = 0;
+                if (channel[i][j] > 255) channel[i][j] = 255;
+                // 四舍五入到整数
+                channel[i][j] = Math.round(channel[i][j]);
+            }
+        }
+
+        return channel;
+    }
+
+
     
     /**
      * 矩阵转置
@@ -150,73 +276,7 @@ class SVD {
         return result;
     }
 
-    /**
-     * 特征值分解 (使用幂迭代法)
-     */
-    static eigenDecomposition(matrix) {
-        const n = matrix.length;
-        const maxIterations = 100;
-        const tolerance = 1e-10;
 
-        const eigenValues = [];
-        const eigenVectors = [];
-
-        // 复制矩阵
-        let A = matrix.map(row => [...row]);
-
-        for (let k = 0; k < Math.min(n, 20); k++) {
-            // 幂迭代法求主特征值和特征向量
-            let v = new Array(n);
-            // 随机初始化
-            for (let i = 0; i < n; i++) {
-                v[i] = Math.random() - 0.5;
-            }
-
-            let lambda = 0;
-
-            for (let iter = 0; iter < maxIterations; iter++) {
-                const Av = this.multiplyMatrixVector(A, v);
-
-                // 归一化
-                const norm = Math.sqrt(Av.reduce((sum, val) => sum + val * val, 0));
-                if (norm < tolerance) break;
-
-                v = Av.map(val => val / norm);
-
-                // 计算瑞利商
-                const vAv = v.reduce((sum, val, i) => {
-                    let rowSum = 0;
-                    for (let j = 0; j < n; j++) {
-                        rowSum += A[i][j] * v[j];
-                    }
-                    return sum + val * rowSum;
-                }, 0);
-
-                const newLambda = vAv;
-                if (Math.abs(newLambda - lambda) < tolerance) {
-                    lambda = newLambda;
-                    break;
-                }
-                lambda = newLambda;
-            }
-
-            if (Math.abs(lambda) < tolerance) {
-                break;
-            }
-
-            eigenValues.push(lambda);
-            eigenVectors.push([...v]);
-
-            // Deflation: 从矩阵中移除这个特征值的贡献
-            for (let i = 0; i < n; i++) {
-                for (let j = 0; j < n; j++) {
-                    A[i][j] -= lambda * v[i] * v[j];
-                }
-            }
-        }
-
-        return { values: eigenValues, vectors: eigenVectors };
-    }
     
 
 }
@@ -269,9 +329,13 @@ class ImageProcessor {
     }
     
     /**
-     * 使用SVD压缩图像 (基于Python代码逻辑)
+     * 使用SVD压缩图像 (改进版本)
+     * @param {ImageData} imageData - 图像数据
+     * @param {number} compressionRatio - 压缩比例 (0-100)
+     * @param {string} compressionMethod - 压缩方式 ('count' 或 'sum')
+     * @param {function} progressCallback - 进度回调函数
      */
-    static async compressImage(imageData, compressionRatio, progressCallback = null) {
+    static async compressImage(imageData, compressionRatio, compressionMethod = 'count', progressCallback = null) {
         const matrices = this.imageToMatrix(imageData);
         const { width, height } = imageData;
 
@@ -298,8 +362,12 @@ class ImageProcessor {
             // 进行SVD分解
             svdResults[channel] = SVD.decompose(matrices[channel]);
 
-            // 使用指定比例进行压缩重构
-            compressedMatrices[channel] = SVD.getCompressData(svdResults[channel], percent);
+            // 根据压缩方式选择不同的压缩函数
+            if (compressionMethod === 'sum') {
+                compressedMatrices[channel] = SVD.getCompressSum(svdResults[channel], percent);
+            } else {
+                compressedMatrices[channel] = SVD.getCompressData(svdResults[channel], percent);
+            }
         }
 
         if (progressCallback) progressCallback(80, '正在重构图像...');
@@ -309,15 +377,49 @@ class ImageProcessor {
 
         if (progressCallback) progressCallback(100, '压缩完成！');
 
-        // 计算实际使用的奇异值个数
-        const avgSigmaLength = Object.values(svdResults).reduce((sum, result) => sum + result.sigma.length, 0) / 3;
-        const retainedValues = Math.ceil(avgSigmaLength * percent);
+        // 计算实际使用的奇异值个数和压缩比
+        const m = height;
+        const n = width;
+        let totalRetainedValues = 0;
+        let totalSingularValues = 0;
+
+        // 计算每个通道实际使用的奇异值个数
+        for (const channel of channels) {
+            const { sigma } = svdResults[channel];
+            totalSingularValues += sigma.length;
+
+            if (compressionMethod === 'sum') {
+                // 按奇异值之和占比计算
+                const totalSum = sigma.reduce((sum, sig) => sum + sig, 0);
+                const targetSum = totalSum * percent;
+                let currentSum = 0;
+                let retainedCount = 0;
+
+                for (let i = 0; i < sigma.length; i++) {
+                    currentSum += sigma[i];
+                    retainedCount++;
+                    if (currentSum > targetSum) break;
+                }
+                totalRetainedValues += retainedCount;
+            } else {
+                // 按奇异值个数占比计算
+                totalRetainedValues += Math.ceil(sigma.length * percent);
+            }
+        }
+
+        const avgRetainedValues = Math.round(totalRetainedValues / 3);
+        const avgTotalValues = Math.round(totalSingularValues / 3);
+
+        // 使用正确的压缩比计算公式：(m×n) / (k(m+n+1))
+        const k = avgRetainedValues;
+        const dataCompressionRatio = (m * n) / (k * (m + n + 1));
 
         return {
             imageData: compressedImageData,
-            retainedSingularValues: retainedValues,
-            totalSingularValues: Math.floor(avgSigmaLength),
-            compressionRatio: (percent * 100).toFixed(1)
+            retainedSingularValues: avgRetainedValues,
+            totalSingularValues: avgTotalValues,
+            compressionRatio: dataCompressionRatio.toFixed(2),
+            compressionMethod: compressionMethod
         };
     }
 
