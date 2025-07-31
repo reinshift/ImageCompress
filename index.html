@@ -3,151 +3,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVD图像压缩演示</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>SVD图像压缩演示 - 访问验证</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .cover-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 15px;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.7;
+            margin-bottom: 40px;
+            line-height: 1.5;
+            color: #666;
+        }
+
+        .password-section {
+            margin-bottom: 30px;
+        }
+
+        .password-label {
+            display: block;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            color: #333;
+            text-align: center;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .password-input:focus {
+            border-color: #667eea;
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .enter-btn {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .enter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .enter-btn:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            color: #dc3545;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .error-message.show {
+            opacity: 1;
+        }
+
+        .features {
+            margin-top: 30px;
+            text-align: left;
+            opacity: 0.8;
+        }
+
+        .features h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .features ul {
+            list-style: none;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #666;
+        }
+
+        .features li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .features li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .cover-container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+            
+            .title {
+                font-size: 2rem;
+            }
+            
+            .logo {
+                font-size: 3rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- 导航栏 -->
-    <nav class="nav-bar">
-        <div class="nav-content">
-            <a href="index.html" class="nav-logo">🖼️ SVD图像压缩</a>
-            <div class="nav-links">
-                <a href="index.html" class="nav-link active">压缩演示</a>
-                <a href="theory.html" class="nav-link">算法原理</a>
-            </div>
+    <div class="cover-container">
+        <div class="logo">🖼️</div>
+        <h1 class="title">SVD图像压缩演示</h1>
+        <p class="subtitle">基于奇异值分解的智能图像压缩算法<br>数据可视化分析平台</p>
+        
+        <div class="password-section">
+            <label class="password-label" for="passwordInput">请输入访问密码</label>
+            <input type="password" id="passwordInput" class="password-input" placeholder="输入密码以继续">
+            <button id="enterBtn" class="enter-btn">进入系统</button>
+            <div id="errorMessage" class="error-message">密码错误，请重试</div>
         </div>
-    </nav>
 
-    <div class="container">
-        <header class="header">
-            <h1>SVD图像压缩演示</h1>
-            <p>使用奇异值分解(SVD)算法压缩图像</p>
-        </header>
-
-        <main class="main">
-            <!-- 上传区域 -->
-            <section class="upload-section">
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-content">
-                        <div class="upload-icon">📁</div>
-                        <p>点击或拖拽图片到此处上传</p>
-                        <p class="upload-hint">支持 JPG, PNG, GIF 格式</p>
-                    </div>
-                    <input type="file" id="fileInput" accept="image/*" hidden>
-                </div>
-            </section>
-
-            <!-- 控制面板 -->
-            <section class="control-panel" id="controlPanel" style="display: none;">
-                <div class="control-group">
-                    <label for="compressionMethod">压缩方式:</label>
-                    <div class="method-selector">
-                        <input type="radio" id="methodCount" name="compressionMethod" value="count" checked>
-                        <label for="methodCount">按奇异值个数占比</label>
-                        <input type="radio" id="methodSum" name="compressionMethod" value="sum">
-                        <label for="methodSum">按奇异值之和占比</label>
-                    </div>
-                </div>
-                <div class="control-group">
-                    <label for="compressionRatio">奇异值保留比例:</label>
-                    <div class="slider-container">
-                        <input type="range" id="compressionRatio" min="1" max="100" value="50" class="slider">
-                        <span id="ratioValue">50%</span>
-                    </div>
-                </div>
-                <button id="compressBtn" class="compress-btn">开始压缩</button>
-            </section>
-
-            <!-- 图像对比区域 -->
-            <section class="comparison-section" id="comparisonSection" style="display: none;">
-                <div class="image-comparison">
-                    <div class="image-container">
-                        <h3>原始图像</h3>
-                        <div class="image-wrapper">
-                            <img id="originalImage" alt="原始图像">
-                            <div class="image-info">
-                                <p>尺寸: <span id="originalSize">-</span></p>
-                                <p>大小: <span id="originalFileSize">-</span></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="arrow">→</div>
-
-                    <div class="image-container">
-                        <h3>压缩图像</h3>
-                        <div class="image-wrapper" id="compressedWrapper">
-                            <div class="placeholder" id="placeholder">
-                                <div class="placeholder-icon">🖼️</div>
-                                <p>压缩后的图像将显示在这里</p>
-                            </div>
-                            <img id="compressedImage" alt="压缩图像" style="display: none;">
-                            <div class="image-info" id="compressedInfo" style="display: none;">
-                                <p>保留奇异值: <span id="retainedValues">-</span></p>
-                                <p>压缩比: <span id="compressionRatioResult">-</span>
-                                   <span class="formula-hint" title="压缩比 = (原图大小 - 压缩后大小) / 原图大小 × 100%">📐</span>
-                                </p>
-                                <p>均方误差: <span id="mseResult">-</span> <span class="unit">px²</span></p>
-                                <p>大小: <span id="compressedFileSize">-</span></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="download-section" id="downloadSection" style="display: none;">
-                    <button id="downloadBtn" class="download-btn">下载压缩图像</button>
-                </div>
-            </section>
-
-            <!-- 数据看板区域 -->
-            <section class="dashboard-section" id="dashboardSection" style="display: none;">
-                <div class="dashboard-header">
-                    <h3>数据分析看板</h3>
-                    <div class="dashboard-controls">
-                        <div class="legend">
-                            <div class="legend-item">
-                                <span class="legend-color compression-ratio"></span>
-                                <span>压缩比 (%)</span>
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-color mse"></span>
-                                <span>均方误差 (px²)</span>
-                            </div>
-                        </div>
-                        <button id="resetDashboard" class="reset-btn">重置看板</button>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="chartCanvas" width="800" height="400"></canvas>
-                    <div class="chart-placeholder" id="chartPlaceholder">
-                        <div class="placeholder-icon">📊</div>
-                        <p>开始压缩图像以查看数据趋势</p>
-                        <p class="chart-hint">每次压缩都会在图表中添加一个数据点，显示奇异值占比与压缩效果的关系</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 加载指示器 -->
-            <div class="loading" id="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p id="loadingText">正在压缩图像，请稍候...</p>
-                <div class="progress-container">
-                    <div class="progress-bar" id="progressBar"></div>
-                </div>
-                <div class="progress-text" id="progressText">0%</div>
-            </div>
-        </main>
-
-        <footer class="footer">
-            <p>基于奇异值分解(SVD)的图像压缩算法演示</p>
-            <p style="margin-top: 10px; font-size: 0.9rem; opacity: 0.7;">
-                压缩比公式：<code style="background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px;">
-                (原图大小 - 压缩后大小) / 原图大小 × 100%</code>
-            </p>
-        </footer>
+        <div class="features">
+            <h3>系统特性</h3>
+            <ul>
+                <li>实时SVD图像压缩算法演示</li>
+                <li>压缩比与均方误差可视化分析</li>
+                <li>交互式数据看板与趋势图表</li>
+                <li>支持多种图像格式处理</li>
+                <li>响应式设计，多设备兼容</li>
+            </ul>
+        </div>
     </div>
 
-    <script src="svd.js"></script>
-    <script src="app.js"></script>
+    <script>
+        const correctPassword = 'xdugaodai';
+        const passwordInput = document.getElementById('passwordInput');
+        const enterBtn = document.getElementById('enterBtn');
+        const errorMessage = document.getElementById('errorMessage');
+
+        function checkPassword() {
+            const inputPassword = passwordInput.value.trim();
+            if (inputPassword === correctPassword) {
+                // 密码正确，跳转到主页面
+                window.location.href = 'main.html';
+            } else {
+                // 密码错误，显示错误信息
+                errorMessage.classList.add('show');
+                passwordInput.value = '';
+                passwordInput.focus();
+                
+                // 3秒后隐藏错误信息
+                setTimeout(() => {
+                    errorMessage.classList.remove('show');
+                }, 3000);
+            }
+        }
+
+        enterBtn.addEventListener('click', checkPassword);
+
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                checkPassword();
+            }
+        });
+
+        // 页面加载时聚焦到密码输入框
+        window.addEventListener('load', () => {
+            passwordInput.focus();
+        });
+    </script>
 </body>
 </html>
