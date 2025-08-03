@@ -504,46 +504,20 @@ class ImageCompressorApp {
     }
 
     useExistingTestImage(imagePath) {
-        console.log('Loading test image and converting to data URL:', imagePath);
+        console.log('Loading test image with simple method:', imagePath);
 
-        // 新方法：先将图片转换为data URL，然后再使用
-        this.convertImageToDataURL(imagePath);
-    }
+        // 直接创建Image对象，就像image-embedding-tool那样
+        const img = new Image();
 
-    convertImageToDataURL(imagePath) {
-        // 创建一个临时的Image对象来加载图片
-        const tempImg = new Image();
+        img.onload = () => {
+            console.log('Test image loaded successfully:', imagePath, img.width, 'x', img.height);
 
-        tempImg.onload = () => {
-            console.log('Temp image loaded, converting to data URL:', imagePath);
-
-            try {
-                // 创建临时canvas来转换图片为data URL
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-
-                tempCanvas.width = tempImg.width;
-                tempCanvas.height = tempImg.height;
-
-                // 绘制图片到临时canvas
-                tempCtx.drawImage(tempImg, 0, 0);
-
-                // 转换为data URL
-                const dataURL = tempCanvas.toDataURL('image/jpeg', 0.9);
-                console.log('Successfully converted to data URL');
-
-                // 现在使用data URL创建新的Image对象
-                this.useDataURLImage(dataURL, imagePath);
-
-            } catch (error) {
-                console.error('Failed to convert to data URL:', error);
-                // 如果转换失败，回退到直接使用路径
-                this.useDirectPath(imagePath);
-            }
+            // 直接处理这个图像
+            this.processLoadedTestImage(img, imagePath);
         };
 
-        tempImg.onerror = (error) => {
-            console.error('Failed to load temp image:', imagePath, error);
+        img.onerror = (error) => {
+            console.error('Failed to load test image:', imagePath, error);
             alert(`无法加载测试图片: ${imagePath}\n请确保图片文件存在。`);
 
             // 移除选中状态
@@ -552,53 +526,113 @@ class ImageCompressorApp {
             });
         };
 
-        // 直接设置图片路径
-        tempImg.src = imagePath;
-    }
-
-    useDataURLImage(dataURL, originalPath) {
-        console.log('Using data URL image');
-
-        const img = new Image();
-
-        img.onload = () => {
-            console.log('Data URL image loaded successfully:', img.width, 'x', img.height);
-
-            // 现在这个图像应该是"干净"的，可以安全地进行canvas操作
-            this.processLoadedTestImage(img, originalPath);
-        };
-
-        img.onerror = (error) => {
-            console.error('Failed to load data URL image:', error);
-            // 回退到直接使用路径
-            this.useDirectPath(originalPath);
-        };
-
-        // 使用data URL
-        img.src = dataURL;
-    }
-
-    useDirectPath(imagePath) {
-        console.log('Using direct path as fallback:', imagePath);
-
-        const img = new Image();
-
-        img.onload = () => {
-            console.log('Direct path image loaded:', imagePath, img.width, 'x', img.height);
-            this.processLoadedTestImage(img, imagePath);
-        };
-
-        img.onerror = (error) => {
-            console.error('Direct path also failed:', error);
-            alert(`无法加载测试图片: ${imagePath}`);
-
-            // 移除选中状态
-            document.querySelectorAll('.test-image-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-        };
-
+        // 直接设置图片路径，不设置crossOrigin
         img.src = imagePath;
+    }
+
+    processLoadedTestImage(img, imagePath) {
+        try {
+            console.log('Processing loaded test image:', imagePath);
+
+            // 创建canvas来处理图像
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // 设置canvas尺寸，考虑缩放
+            let width = img.width;
+            let height = img.height;
+            const originalWidth = width;
+            const originalHeight = height;
+            const maxSize = 800;
+            let shouldScale = false;
+
+            if (width > maxSize || height > maxSize) {
+                const scaleRatio = Math.min(maxSize / width, maxSize / height);
+                width = Math.floor(width * scaleRatio);
+                height = Math.floor(height * scaleRatio);
+                shouldScale = true;
+                console.log('Scaling image from', originalWidth, 'x', originalHeight, 'to', width, 'x', height);
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            // 绘制图像
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // 尝试获取图像数据
+            try {
+                const imageData = ctx.getImageData(0, 0, width, height);
+                console.log('Successfully got image data:', imageData.width, 'x', imageData.height);
+
+                // 设置原始图像数据
+                this.originalImageData = imageData;
+
+                // 更新UI - 直接使用原始图片路径
+                this.updateUIForLoadedTestImage(imagePath, originalWidth, originalHeight, shouldScale);
+
+            } catch (getImageDataError) {
+                console.error('getImageData failed:', getImageDataError.message);
+                alert(`无法获取图片的像素数据：${getImageDataError.message}\n\n这可能是由于浏览器安全限制。\n建议：\n1. 使用本地HTTP服务器运行项目\n2. 使用文件上传功能选择图片`);
+
+                // 移除选中状态
+                document.querySelectorAll('.test-image-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+            }
+
+        } catch (error) {
+            console.error('Error processing loaded test image:', error);
+            alert('处理测试图片时出错: ' + error.message);
+        }
+    }
+
+    updateUIForLoadedTestImage(imagePath, originalWidth, originalHeight, shouldScale) {
+        try {
+            // 直接使用图片路径显示
+            this.originalImage.src = imagePath;
+
+            // 检测图像类型
+            const imageType = ImageProcessor.detectImageType(this.originalImageData);
+            const imageTypeText = imageType === 'grayscale' ? '黑白图像' : '彩色图像';
+            console.log('Detected image type:', imageTypeText);
+
+            // 创建模拟文件对象
+            const fileName = imagePath.split('/').pop();
+            this.originalFile = {
+                name: fileName,
+                size: this.originalImageData.width * this.originalImageData.height * 4,
+                type: 'image/jpeg'
+            };
+
+            // 更新显示信息
+            if (shouldScale) {
+                this.originalSize.textContent = `${originalWidth} × ${originalHeight} (缩放至 ${this.originalImageData.width} × ${this.originalImageData.height})`;
+            } else {
+                this.originalSize.textContent = `${this.originalImageData.width} × ${this.originalImageData.height}`;
+            }
+            this.originalFileSize.textContent = this.formatFileSize(this.originalFile.size);
+            this.imageType.textContent = imageTypeText;
+
+            // 显示原始图像和信息
+            this.uploadArea.style.display = 'none';
+            this.originalImage.style.display = 'block';
+            this.originalInfo.style.display = 'block';
+
+            // 重置右边的占位图和看板
+            this.placeholder.style.display = 'flex';
+            this.compressedImage.style.display = 'none';
+            this.compressedInfo.style.display = 'none';
+            this.downloadSection.style.display = 'none';
+            this.rgbChannels.style.display = 'none';
+            this.resetChart();
+
+            console.log('Test image UI updated successfully');
+
+        } catch (error) {
+            console.error('Error updating UI for loaded test image:', error);
+            alert('更新界面时出错: ' + error.message);
+        }
     }
 
     processTestImageDirectly(imgElement, imagePath) {
