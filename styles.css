@@ -201,6 +201,97 @@ body {
     color: #555;
 }
 
+/* 测试图片预览样式 */
+.test-images-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.test-image-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.test-image-item:hover {
+    border-color: #667eea;
+    background: #f0f4ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.test-image-item.selected {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.test-image-item img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-bottom: 4px;
+}
+
+.test-image-item span {
+    font-size: 0.8rem;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* RGB分通道显示样式 */
+.rgb-channels {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.channel-container {
+    text-align: center;
+}
+
+.channel-container h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+}
+
+.channel-container h4:first-child {
+    color: #dc3545; /* 红色 */
+}
+
+.channel-container:nth-child(2) h4 {
+    color: #28a745; /* 绿色 */
+}
+
+.channel-container:nth-child(3) h4 {
+    color: #007bff; /* 蓝色 */
+}
+
+.channel-image {
+    width: 100%;
+    max-width: 150px;
+    height: auto;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .method-selector {
     display: flex;
     gap: 20px;

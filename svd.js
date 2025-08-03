@@ -18,32 +18,36 @@ class SVD {
 
         if (progressCallback) progressCallback(10, '开始SVD分解...');
 
-        // 根据矩阵大小调整计算精度
+        // 修复奇异值个数问题：确保获得正确数量的奇异值
+        // 奇异值个数的理论上限是min(m, n)
         const isLargeMatrix = m * n > 100000; // 超过10万像素的矩阵
-        const maxEigenvalues = isLargeMatrix ? Math.min(minDim, 50) : Math.min(minDim, 100);
+
+        // 对于大矩阵，我们仍然计算足够多的奇异值以保证压缩质量
+        // 但会根据矩阵大小动态调整，确保不少于矩阵维度的一定比例
+        let maxEigenvalues;
+        if (isLargeMatrix) {
+            // 对于大矩阵，至少计算矩阵较小维度的60%的奇异值
+            maxEigenvalues = Math.max(Math.floor(minDim * 0.6), Math.min(minDim, 100));
+        } else {
+            // 对于小矩阵，尽可能计算所有奇异值
+            maxEigenvalues = minDim;
+        }
+
         const tolerance = isLargeMatrix ? 1e-8 : 1e-10;
 
-        // 计算 A^T * A 和 A * A^T
+        // 计算 A^T * A 用于获取V矩阵和奇异值
         const AtA = this.multiplyMatrices(this.transpose(A), A);
-        const AAt = this.multiplyMatrices(A, this.transpose(A));
 
         if (progressCallback) progressCallback(30, '计算特征值...');
 
         // 对A^T*A进行特征值分解得到V和奇异值的平方
         const eigenV = this.eigenDecomposition(AtA, maxEigenvalues, tolerance, (progress) => {
             if (progressCallback) {
-                progressCallback(30 + progress * 0.3, '计算V矩阵特征值...');
+                progressCallback(30 + progress * 0.6, '计算V矩阵特征值...');
             }
         });
 
         if (progressCallback) progressCallback(60, '计算U矩阵...');
-
-        // 对A*A^T进行特征值分解得到U
-        const eigenU = this.eigenDecomposition(AAt, maxEigenvalues, tolerance, (progress) => {
-            if (progressCallback) {
-                progressCallback(60 + progress * 0.3, '计算U矩阵特征值...');
-            }
-        });
 
         // 提取奇异值（特征值的平方根）
         const sigma = eigenV.values.map(val => Math.sqrt(Math.max(0, val)));
@@ -56,18 +60,31 @@ class SVD {
         const sortedSigma = indices.map(i => sigma[i]);
         const V_T = indices.map(i => eigenV.vectors[i]);
 
-        // 计算U矩阵
+        // 计算U矩阵 - 使用更稳定的方法
         const U = [];
-        for (let i = 0; i < Math.min(m, n); i++) {
+        for (let i = 0; i < sortedSigma.length && i < minDim; i++) {
             if (sortedSigma[i] > tolerance) {
                 // u_i = A * v_i / sigma_i
                 const v_i = V_T[i];
                 const Av = this.multiplyMatrixVector(A, v_i);
                 const u_i = Av.map(val => val / sortedSigma[i]);
-                U.push(u_i);
+
+                // 归一化u_i
+                const norm = Math.sqrt(u_i.reduce((sum, val) => sum + val * val, 0));
+                if (norm > tolerance) {
+                    U.push(u_i.map(val => val / norm));
+                } else {
+                    U.push(new Array(m).fill(0));
+                }
             } else {
+                // 对于很小的奇异值，我们仍然保留，但设为零向量
                 U.push(new Array(m).fill(0));
             }
+        }
+
+        // 确保U矩阵有足够的列数
+        while (U.length < minDim) {
+            U.push(new Array(m).fill(0));
         }
 
         if (progressCallback) progressCallback(100, 'SVD分解完成');
@@ -84,13 +101,17 @@ class SVD {
      */
     static eigenDecomposition(matrix, maxEigenvalues = 100, tolerance = 1e-10, progressCallback = null) {
         const n = matrix.length;
-        const maxIterations = 200; // 减少迭代次数以提高性能
+        const maxIterations = 300; // 增加迭代次数以提高精度
 
         const eigenValues = [];
         const eigenVectors = [];
 
         // 复制矩阵
         let A = matrix.map(row => [...row]);
+
+        // 计算矩阵的Frobenius范数，用于判断收敛
+        const matrixNorm = Math.sqrt(A.reduce((sum, row) =>
+            sum + row.reduce((rowSum, val) => rowSum + val * val, 0), 0));
 
         for (let k = 0; k < maxEigenvalues; k++) {
             if (progressCallback) {
@@ -140,7 +161,9 @@ class SVD {
                 lambda = newLambda;
             }
 
-            if (Math.abs(lambda) < tolerance || !converged) {
+            // 改进的收敛判断：考虑相对于矩阵范数的特征值大小
+            const relativeEigenvalue = Math.abs(lambda) / matrixNorm;
+            if (relativeEigenvalue < tolerance || !converged) {
                 break;
             }
 
@@ -486,6 +509,8 @@ class ImageProcessor {
             // 根据压缩方式选择不同的压缩函数
             let compressedMatrix;
             let actualRetainedValues;
+            const totalSingularValues = svdResult.sigma.length;
+
             if (compressionMethod === 'sum') {
                 const compressedResult = SVD.getCompressSum(svdResult, percent);
                 compressedMatrix = compressedResult.matrix;
@@ -506,7 +531,6 @@ class ImageProcessor {
             const compressedImageData = this.matrixToImage(compressedMatrixData);
 
             // 计算压缩统计信息
-            const totalSingularValues = svdResult.sigma.length;
             const retainedSingularValues = actualRetainedValues;
 
             // 计算压缩比
@@ -592,7 +616,9 @@ class ImageProcessor {
             totalSingularValues: avgTotalValues,
             compressionRatio: dataCompressionRatio.toFixed(2),
                 compressionMethod,
-                imageType: type
+                imageType: type,
+                // 添加分通道数据用于RGB图像显示
+                channelMatrices: compressedMatrices
         };
         }
     }

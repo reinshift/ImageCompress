@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data URL转换测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-image-item { 
+            display: inline-block; 
+            margin: 10px; 
+            padding: 10px; 
+            border: 2px solid #ccc; 
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        .test-image-item.selected { border-color: #007bff; background: #f0f8ff; }
+        .test-image-item img { width: 100px; height: 100px; object-fit: cover; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+        #result { margin-top: 20px; padding: 20px; background: #f5f5f5; border-radius: 8px; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        .info { color: blue; }
+        #displayImage { max-width: 200px; max-height: 200px; border: 1px solid #ccc; margin: 10px 0; }
+        .step { margin: 10px 0; padding: 10px; background: #f9f9f9; border-left: 4px solid #007bff; }
+    </style>
+</head>
+<body>
+    <h1>Data URL转换测试 - 解决跨域问题</h1>
+    
+    <div>
+        <h2>测试图片:</h2>
+        <div class="test-image-item" data-image="gray.jpg">
+            <img src="gray.jpg" alt="灰度图">
+            <div>灰度图</div>
+        </div>
+        <div class="test-image-item" data-image="xidian.jpg">
+            <img src="xidian.jpg" alt="校徽">
+            <div>校徽</div>
+        </div>
+    </div>
+    
+    <div>
+        <button id="testBtn">测试Data URL方法</button>
+        <button id="clearBtn">清除</button>
+    </div>
+    
+    <div id="result">
+        <h3>测试结果:</h3>
+        <div id="status">请选择一张测试图片</div>
+        <div id="steps"></div>
+        <img id="displayImage" style="display: none;" alt="显示图片">
+    </div>
+
+    <script>
+        let selectedImageItem = null;
+        let originalImageData = null;
+        
+        // 图片选择事件
+        document.addEventListener('click', (e) => {
+            const testImageItem = e.target.closest('.test-image-item');
+            if (testImageItem) {
+                // 移除之前选中的状态
+                document.querySelectorAll('.test-image-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                
+                // 添加选中状态
+                testImageItem.classList.add('selected');
+                selectedImageItem = testImageItem;
+                
+                const imagePath = testImageItem.dataset.image;
+                document.getElementById('status').textContent = `已选择: ${imagePath}`;
+                
+                console.log('Selected image:', imagePath);
+            }
+        });
+        
+        // 测试按钮
+        document.getElementById('testBtn').addEventListener('click', () => {
+            if (!selectedImageItem) {
+                alert('请先选择一张图片');
+                return;
+            }
+            
+            testDataURLMethod();
+        });
+        
+        // 清除按钮
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            selectedImageItem = null;
+            originalImageData = null;
+            document.querySelectorAll('.test-image-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.getElementById('status').textContent = '请选择一张测试图片';
+            document.getElementById('steps').innerHTML = '';
+            document.getElementById('displayImage').style.display = 'none';
+        });
+        
+        function testDataURLMethod() {
+            const imagePath = selectedImageItem.dataset.image;
+            const stepsDiv = document.getElementById('steps');
+            
+            document.getElementById('status').innerHTML = `<span class="warning">正在测试Data URL方法: ${imagePath}</span>`;
+            stepsDiv.innerHTML = '';
+            
+            // 步骤1: 加载原始图片
+            addStep('info', '步骤1: 加载原始图片', `开始加载: ${imagePath}`);
+            
+            const tempImg = new Image();
+            
+            tempImg.onload = () => {
+                addStep('success', '步骤1: 加载原始图片', `成功加载 (${tempImg.width}×${tempImg.height})`);
+                
+                // 步骤2: 转换为Data URL
+                addStep('info', '步骤2: 转换为Data URL', '开始转换...');
+                
+                try {
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    tempCanvas.width = tempImg.width;
+                    tempCanvas.height = tempImg.height;
+                    
+                    // 绘制图片到临时canvas
+                    tempCtx.drawImage(tempImg, 0, 0);
+                    
+                    // 转换为data URL
+                    const dataURL = tempCanvas.toDataURL('image/jpeg', 0.9);
+                    addStep('success', '步骤2: 转换为Data URL', `成功转换 (${Math.round(dataURL.length/1024)}KB)`);
+                    
+                    // 步骤3: 使用Data URL创建新图像
+                    addStep('info', '步骤3: 使用Data URL创建新图像', '开始创建...');
+                    
+                    const newImg = new Image();
+                    
+                    newImg.onload = () => {
+                        addStep('success', '步骤3: 使用Data URL创建新图像', `成功创建 (${newImg.width}×${newImg.height})`);
+                        
+                        // 步骤4: 测试Canvas操作
+                        addStep('info', '步骤4: 测试Canvas操作', '开始Canvas操作...');
+                        
+                        try {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            const maxSize = 200;
+                            let width = newImg.width;
+                            let height = newImg.height;
+                            
+                            if (width > maxSize || height > maxSize) {
+                                const scaleRatio = Math.min(maxSize / width, maxSize / height);
+                                width = Math.floor(width * scaleRatio);
+                                height = Math.floor(height * scaleRatio);
+                            }
+                            
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(newImg, 0, 0, width, height);
+                            
+                            // 关键测试：getImageData
+                            const imageData = ctx.getImageData(0, 0, width, height);
+                            addStep('success', '步骤4: 测试Canvas操作', `getImageData成功! (${imageData.data.length} bytes)`);
+                            
+                            originalImageData = imageData;
+                            
+                            // 显示结果图像
+                            const displayImg = document.getElementById('displayImage');
+                            displayImg.src = dataURL;
+                            displayImg.style.display = 'block';
+                            
+                            // 分析图像数据
+                            const analysis = analyzeImageData(imageData);
+                            addStep('success', '步骤5: 图像分析', `类型: ${analysis.isGrayscale ? '灰度' : '彩色'}, 平均色: RGB(${analysis.avgColor.r}, ${analysis.avgColor.g}, ${analysis.avgColor.b})`);
+                            
+                            document.getElementById('status').innerHTML = `<span class="success">✓ Data URL方法完全成功!</span>`;
+                            
+                            console.log('Data URL method completed successfully');
+                            
+                        } catch (canvasError) {
+                            addStep('error', '步骤4: 测试Canvas操作', `失败: ${canvasError.message}`);
+                        }
+                    };
+                    
+                    newImg.onerror = () => {
+                        addStep('error', '步骤3: 使用Data URL创建新图像', '新图像创建失败');
+                    };
+                    
+                    newImg.src = dataURL;
+                    
+                } catch (conversionError) {
+                    addStep('error', '步骤2: 转换为Data URL', `转换失败: ${conversionError.message}`);
+                }
+            };
+            
+            tempImg.onerror = (error) => {
+                addStep('error', '步骤1: 加载原始图片', `加载失败: ${error}`);
+            };
+            
+            tempImg.src = imagePath;
+        }
+        
+        function addStep(type, title, message) {
+            const stepsDiv = document.getElementById('steps');
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'step';
+            
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warning' ? '⚠' : 'ℹ';
+            stepDiv.innerHTML = `<span class="${type}">${icon} ${title}</span>: ${message}`;
+            
+            stepsDiv.appendChild(stepDiv);
+            console.log(`${title}: ${message}`);
+        }
+        
+        function analyzeImageData(imageData) {
+            const { data } = imageData;
+            let totalR = 0, totalG = 0, totalB = 0;
+            let grayscalePixels = 0;
+            const totalPixels = imageData.width * imageData.height;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                totalR += r;
+                totalG += g;
+                totalB += b;
+                
+                const tolerance = 5;
+                if (Math.abs(r - g) <= tolerance && Math.abs(g - b) <= tolerance && Math.abs(r - b) <= tolerance) {
+                    grayscalePixels++;
+                }
+            }
+            
+            const avgColor = {
+                r: Math.floor(totalR / totalPixels),
+                g: Math.floor(totalG / totalPixels),
+                b: Math.floor(totalB / totalPixels)
+            };
+            
+            const isGrayscale = (grayscalePixels / totalPixels) >= 0.95;
+            
+            return { isGrayscale, avgColor };
+        }
+    </script>
+</body>
+</html>

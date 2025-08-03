@@ -64,6 +64,23 @@
                                     <p>压缩后的图像将显示在这里</p>
                                 </div>
                                 <img id="compressedImage" alt="压缩图像" style="display: none;">
+
+                                <!-- RGB分通道显示区域 -->
+                                <div class="rgb-channels" id="rgbChannels" style="display: none;">
+                                    <div class="channel-container">
+                                        <h4>R通道</h4>
+                                        <img id="redChannelImage" alt="红色通道" class="channel-image">
+                                    </div>
+                                    <div class="channel-container">
+                                        <h4>G通道</h4>
+                                        <img id="greenChannelImage" alt="绿色通道" class="channel-image">
+                                    </div>
+                                    <div class="channel-container">
+                                        <h4>B通道</h4>
+                                        <img id="blueChannelImage" alt="蓝色通道" class="channel-image">
+                                    </div>
+                                </div>
+
                                 <div class="image-info" id="compressedInfo" style="display: none;">
                                     <p>保留奇异值: <span id="retainedValues">-</span> <span class="formula-hint" title="显示实际使用的奇异值个数和占比">📊</span></p>
                                     <p>数据压缩比: <span id="compressionRatioResult">-</span>
@@ -87,6 +104,29 @@
                 <div class="right-panel">
                     <!-- 控制面板 -->
                     <section class="control-panel" id="controlPanel">
+                        <!-- 测试图片预览区域 -->
+                        <div class="control-group">
+                            <label>测试图片:</label>
+                            <div class="test-images-container" id="testImagesContainer">
+                                <div class="test-image-item" data-image="gray.jpg">
+                                    <img src="gray.jpg" alt="灰度测试图" title="灰度测试图">
+                                    <span>灰度图</span>
+                                </div>
+                                <div class="test-image-item" data-image="xidian.jpg">
+                                    <img src="xidian.jpg" alt="西电校徽" title="西电校徽">
+                                    <span>校徽</span>
+                                </div>
+                                <div class="test-image-item" data-image="学校图片.jpg">
+                                    <img src="学校图片.jpg" alt="学校图片" title="学校图片">
+                                    <span>学校</span>
+                                </div>
+                                <div class="test-image-item" data-image="风景1.jpg">
+                                    <img src="风景1.jpg" alt="风景图片" title="风景图片">
+                                    <span>风景</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="control-group">
                             <label for="compressionMethod">压缩方式:</label>
                             <div class="method-selector">
