@@ -299,7 +299,6 @@ class ImageCompressorApp {
         this.uploadArea = document.getElementById('uploadArea');
         this.fileInput = document.getElementById('fileInput');
         this.controlPanel = document.getElementById('controlPanel');
-        this.comparisonSection = document.getElementById('comparisonSection');
         this.loading = document.getElementById('loading');
 
         this.compressionSlider = document.getElementById('compressionRatio');
@@ -316,6 +315,7 @@ class ImageCompressorApp {
         this.compressedImage = document.getElementById('compressedImage');
         this.placeholder = document.getElementById('placeholder');
         this.compressedInfo = document.getElementById('compressedInfo');
+        this.originalInfo = document.getElementById('originalInfo');
 
         this.originalSize = document.getElementById('originalSize');
         this.originalFileSize = document.getElementById('originalFileSize');
@@ -432,23 +432,6 @@ class ImageCompressorApp {
         this.chartCanvas.style.display = 'block';
         this.chartPlaceholder.style.display = 'none';
     }
-
-    smoothScrollToPanel() {
-        // 延迟一小段时间，确保DOM元素已经显示
-        setTimeout(() => {
-            const controlPanel = this.controlPanel;
-            if (controlPanel) {
-                // 计算目标位置，稍微向上偏移一些，避免紧贴顶部
-                const targetPosition = controlPanel.offsetTop - 20;
-
-                // 使用平滑滚动
-                window.scrollTo({
-                    top: targetPosition,
-                    behavior: 'smooth'
-                });
-            }
-        }, 300); // 300ms延迟，让显示动画完成
-    }
     
     handleFileSelect(file) {
         if (!file || !file.type.startsWith('image/')) {
@@ -496,20 +479,17 @@ class ImageCompressorApp {
         this.originalSize.textContent = `${width} × ${height}`;
         this.originalFileSize.textContent = this.formatFileSize(file.size);
 
-        // 显示对比区域和控制面板
-        this.comparisonSection.style.display = 'block';
-        this.controlPanel.style.display = 'block';
+        // 显示原始图像和信息
+        this.uploadArea.style.display = 'none';
+        this.originalImage.style.display = 'block';
+        this.originalInfo.style.display = 'block';
 
         // 重置右边的占位图和看板
         this.placeholder.style.display = 'flex';
         this.compressedImage.style.display = 'none';
         this.compressedInfo.style.display = 'none';
         this.downloadSection.style.display = 'none';
-        this.dashboardSection.style.display = 'none';
         this.resetChart();
-
-        // 优雅滑动到压缩面板
-        this.smoothScrollToPanel();
     }
     
     async compressImage() {
@@ -571,9 +551,6 @@ class ImageCompressorApp {
             // 添加数据点到看板
             const singularValueRatio = (result.retainedSingularValues / result.totalSingularValues * 100);
             this.addDataPointToChart(singularValueRatio, parseFloat(result.compressionRatio), mse, result.compressionMethod);
-
-            // 显示看板
-            this.dashboardSection.style.display = 'block';
 
         } catch (error) {
             console.error('压缩过程中出现错误:', error);
