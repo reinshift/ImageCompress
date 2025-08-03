@@ -300,6 +300,11 @@ class ImageCompressorApp {
         // 获取DOM元素
         this.uploadArea = document.getElementById('uploadArea');
         this.fileInput = document.getElementById('fileInput');
+
+        console.log('Elements initialized:', {
+            uploadArea: !!this.uploadArea,
+            fileInput: !!this.fileInput
+        });
         this.controlPanel = document.getElementById('controlPanel');
         this.loading = document.getElementById('loading');
 
@@ -346,12 +351,26 @@ class ImageCompressorApp {
     }
     
     bindEvents() {
+        // 检查元素是否存在
+        if (!this.uploadArea) {
+            console.error('uploadArea element not found!');
+            return;
+        }
+        if (!this.fileInput) {
+            console.error('fileInput element not found!');
+            return;
+        }
+
+        console.log('Binding upload events...');
+
         // 文件上传事件
-        this.uploadArea.addEventListener('click', () => {
+        this.uploadArea.addEventListener('click', (e) => {
+            console.log('Upload area clicked!', e.target);
             this.fileInput.click();
         });
         
         this.fileInput.addEventListener('change', (e) => {
+            console.log('File input changed!', e.target.files);
             this.handleFileSelect(e.target.files[0]);
         });
         
@@ -383,11 +402,41 @@ class ImageCompressorApp {
         this.compressBtn.addEventListener('click', () => {
             this.compressImage();
         });
+
+        // 快速比例选择按钮事件
+        document.querySelectorAll('.quick-ratio-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // 移除所有active类
+                document.querySelectorAll('.quick-ratio-btn').forEach(b => b.classList.remove('active'));
+                // 添加active类到当前按钮
+                e.target.classList.add('active');
+
+                // 更新滑块值
+                const ratio = parseInt(e.target.dataset.ratio);
+                this.compressionSlider.value = ratio;
+                this.ratioValue.textContent = ratio + '%';
+            });
+        });
+
+        // 批量压缩复选框事件
+        const enableBatch = document.getElementById('enableBatch');
+        const batchRatios = document.getElementById('batchRatios');
+        enableBatch.addEventListener('change', (e) => {
+            batchRatios.style.display = e.target.checked ? 'block' : 'none';
+        });
         
         // 下载按钮事件
         this.downloadBtn.addEventListener('click', () => {
             this.downloadCompressedImage();
         });
+
+        // 下载所有批量结果按钮事件
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        if (downloadAllBtn) {
+            downloadAllBtn.addEventListener('click', () => {
+                this.downloadAllBatchResults();
+            });
+        }
 
         // 看板相关事件
         this.resetDashboard.addEventListener('click', () => {
@@ -573,7 +622,8 @@ class ImageCompressorApp {
 
             } catch (getImageDataError) {
                 console.error('getImageData failed:', getImageDataError.message);
-                alert(`无法获取图片的像素数据：${getImageDataError.message}\n\n这可能是由于浏览器安全限制。\n建议：\n1. 使用本地HTTP服务器运行项目\n2. 使用文件上传功能选择图片`);
+                console.warn('这可能是由于浏览器安全限制。建议：1. 使用本地HTTP服务器运行项目 2. 使用文件上传功能选择图片');
+                this.showMessage('无法获取图片像素数据，建议使用文件上传功能', 'warning');
 
                 // 移除选中状态
                 document.querySelectorAll('.test-image-item').forEach(item => {
@@ -583,7 +633,7 @@ class ImageCompressorApp {
 
         } catch (error) {
             console.error('Error processing loaded test image:', error);
-            alert('处理测试图片时出错: ' + error.message);
+            // 只在控制台记录错误，不打扰用户
         }
     }
 
@@ -631,7 +681,7 @@ class ImageCompressorApp {
 
         } catch (error) {
             console.error('Error updating UI for loaded test image:', error);
-            alert('更新界面时出错: ' + error.message);
+            // 只在控制台记录错误，不打扰用户
         }
     }
 
@@ -644,7 +694,7 @@ class ImageCompressorApp {
 
         } catch (error) {
             console.error('Error processing test image directly:', error);
-            alert('处理测试图片时出错: ' + error.message);
+            // 只在控制台记录错误，不打扰用户
         }
     }
 
@@ -803,7 +853,7 @@ class ImageCompressorApp {
         } catch (error) {
             console.error('Error updating UI with object URL:', error);
             URL.revokeObjectURL(objectURL);
-            alert('更新界面时出错: ' + error.message);
+            // 只在控制台记录错误，不打扰用户
         }
     }
 
@@ -813,7 +863,7 @@ class ImageCompressorApp {
         if (!canvas) {
             // 如果没有canvas，直接使用原始图片路径
             this.originalImage.src = imagePath;
-            alert('无法处理测试图片的像素数据，但已显示原始图片。建议使用文件上传功能。');
+            console.warn('无法处理测试图片的像素数据，但已显示原始图片。建议使用文件上传功能。');
             return;
         }
 
@@ -847,8 +897,7 @@ class ImageCompressorApp {
 
             } catch (getImageDataError) {
                 console.error('getImageData failed:', getImageDataError.message);
-                // 不使用生成数据，直接告知用户失败
-                alert(`无法获取图片的像素数据：${getImageDataError.message}\n\n建议：\n1. 使用文件上传功能选择图片\n2. 或使用本地服务器运行项目`);
+                console.warn('建议：1. 使用文件上传功能选择图片 2. 或使用本地服务器运行项目');
 
                 // 移除选中状态
                 document.querySelectorAll('.test-image-item').forEach(item => {
@@ -858,7 +907,7 @@ class ImageCompressorApp {
 
         } catch (error) {
             console.error('Error extracting pixel data:', error);
-            alert('提取图像数据时出错: ' + error.message);
+            // 只在控制台记录错误，不打扰用户
         }
     }
 
@@ -917,7 +966,7 @@ class ImageCompressorApp {
 
         } catch (error) {
             console.error('Error updating UI safely:', error);
-            alert('更新界面时出错: ' + error.message);
+            // 只在控制台记录错误，不打扰用户
         }
     }
 
@@ -996,6 +1045,13 @@ class ImageCompressorApp {
             return;
         }
 
+        // 检查是否启用批量压缩
+        const enableBatch = document.getElementById('enableBatch').checked;
+        if (enableBatch) {
+            await this.batchCompressImage();
+            return;
+        }
+
         console.log('Starting compression...');
 
         // 显示加载指示器
@@ -1038,6 +1094,12 @@ class ImageCompressorApp {
             const jpegQuality = this.calculateOptimalJPEGQuality(compressionRatio, result);
             this.compressedImage.src = canvas.toDataURL('image/jpeg', jpegQuality);
             this.compressedImageData = result.imageData;
+
+            // 隐藏批量结果区域
+            const batchResultsDiv = document.getElementById('batchResults');
+            if (batchResultsDiv) {
+                batchResultsDiv.style.display = 'none';
+            }
 
             // 隐藏占位图，显示压缩结果
             this.placeholder.style.display = 'none';
@@ -1117,6 +1179,123 @@ class ImageCompressorApp {
             this.loading.style.display = 'none';
             this.compressBtn.disabled = false;
         }
+    }
+
+    async batchCompressImage() {
+        const batchRatioInput = document.getElementById('batchRatioInput').value;
+        const ratios = batchRatioInput.split(',').map(r => parseInt(r.trim())).filter(r => r > 0 && r <= 100);
+
+        if (ratios.length === 0) {
+            alert('请输入有效的压缩比例！');
+            return;
+        }
+
+        console.log('开始批量压缩，比例:', ratios);
+
+        // 显示加载指示器
+        this.loading.style.display = 'block';
+        this.compressBtn.disabled = true;
+
+        const compressionMethod = document.querySelector('input[name="compressionMethod"]:checked').value;
+        const batchResults = [];
+
+        try {
+            for (let i = 0; i < ratios.length; i++) {
+                const ratio = ratios[i];
+                const progress = ((i + 1) / ratios.length) * 100;
+
+                this.updateProgress(progress, `压缩中 ${ratio}% (${i + 1}/${ratios.length})`);
+
+                // 执行压缩
+                const result = await ImageProcessor.compressImage(
+                    this.originalImageData,
+                    ratio,
+                    compressionMethod
+                );
+
+                // 创建预览图
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = this.originalImageData.width;
+                canvas.height = this.originalImageData.height;
+                ctx.putImageData(result.imageData, 0, 0);
+
+                const jpegQuality = this.calculateOptimalJPEGQuality(ratio, result);
+                const dataUrl = canvas.toDataURL('image/jpeg', jpegQuality);
+
+                // 计算MSE
+                const mse = ImageProcessor.calculateMSE(this.originalImageData, result.imageData);
+
+                batchResults.push({
+                    ratio: ratio,
+                    result: result,
+                    dataUrl: dataUrl,
+                    mse: mse,
+                    jpegQuality: jpegQuality
+                });
+
+                // 添加到图表
+                const singularValueRatio = (result.retainedSingularValues / result.totalSingularValues * 100);
+                this.addDataPointToChart(singularValueRatio, parseFloat(result.compressionRatio), mse, result.compressionMethod);
+            }
+
+            // 显示批量结果
+            this.displayBatchResults(batchResults);
+
+        } catch (error) {
+            console.error('批量压缩过程中出现错误:', error);
+            alert('批量压缩过程中出现错误，请重试！');
+        } finally {
+            // 隐藏加载指示器
+            this.loading.style.display = 'none';
+            this.compressBtn.disabled = false;
+        }
+    }
+
+    displayBatchResults(batchResults) {
+        const batchResultsDiv = document.getElementById('batchResults');
+        const batchResultsList = document.getElementById('batchResultsList');
+
+        // 清空之前的结果
+        batchResultsList.innerHTML = '';
+
+        batchResults.forEach((item, index) => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'batch-result-item';
+
+            resultItem.innerHTML = `
+                <img src="${item.dataUrl}" alt="压缩结果 ${item.ratio}%" class="batch-result-preview">
+                <div class="batch-result-info">
+                    <div class="ratio">压缩比例: ${item.ratio}%</div>
+                    <div class="stats">数据压缩比: ${item.result.compressionRatio} | MSE: ${item.mse.toFixed(2)}</div>
+                    <div class="stats">奇异值: ${item.result.retainedSingularValues}/${item.result.totalSingularValues}</div>
+                </div>
+                <button class="batch-download-btn" data-index="${index}">下载</button>
+            `;
+
+            batchResultsList.appendChild(resultItem);
+        });
+
+        // 添加下载事件
+        batchResultsList.querySelectorAll('.batch-download-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.index);
+                const item = batchResults[index];
+                this.downloadImage(item.dataUrl, `compressed_${item.ratio}percent.jpg`);
+            });
+        });
+
+        // 显示批量结果区域
+        batchResultsDiv.style.display = 'block';
+
+        // 隐藏单个结果区域
+        this.placeholder.style.display = 'block';
+        this.compressedImage.style.display = 'none';
+        this.compressedInfo.style.display = 'none';
+        this.downloadSection.style.display = 'none';
+        this.rgbChannels.style.display = 'none';
+
+        console.log(`批量压缩完成，生成了 ${batchResults.length} 个结果`);
     }
 
     updateProgress(percentage, message) {
@@ -1259,7 +1438,44 @@ class ImageCompressorApp {
         // 显示RGB分通道区域
         this.rgbChannels.style.display = 'grid';
     }
+
+    downloadImage(dataUrl = null, filename = 'compressed_image.jpg') {
+        const imageUrl = dataUrl || this.compressedImage.src;
+
+        if (!imageUrl) {
+            alert('没有可下载的压缩图像！');
+            return;
+        }
+
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = imageUrl;
+        link.click();
+    }
+
+    downloadAllBatchResults() {
+        // 这里可以实现打包下载所有批量结果的功能
+        // 由于浏览器限制，我们逐个下载
+        const batchItems = document.querySelectorAll('.batch-download-btn');
+        if (batchItems.length === 0) {
+            alert('没有批量结果可下载！');
+            return;
+        }
+
+        // 模拟点击所有下载按钮
+        batchItems.forEach((btn, index) => {
+            setTimeout(() => {
+                btn.click();
+            }, index * 500); // 每500ms下载一个，避免浏览器阻止
+        });
+    }
+
+
 }
+
+
+
+// ImageProcessor类已在svd.js中定义，避免重复声明
 
 // 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
