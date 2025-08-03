@@ -238,6 +238,7 @@ body {
     background: #ddd;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 .slider::-webkit-slider-thumb {
