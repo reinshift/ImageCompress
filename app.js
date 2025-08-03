@@ -319,10 +319,13 @@ class ImageCompressorApp {
 
         this.originalSize = document.getElementById('originalSize');
         this.originalFileSize = document.getElementById('originalFileSize');
+        this.imageType = document.getElementById('imageType');
         this.retainedValues = document.getElementById('retainedValues');
         this.compressionRatioResult = document.getElementById('compressionRatioResult');
+        this.fileCompressionRatio = document.getElementById('fileCompressionRatio');
         this.mseResult = document.getElementById('mseResult');
         this.compressedFileSize = document.getElementById('compressedFileSize');
+        this.processingMethod = document.getElementById('processingMethod');
 
         // 看板相关元素
         this.dashboardSection = document.getElementById('dashboardSection');
@@ -457,27 +460,42 @@ class ImageCompressorApp {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // 限制图像大小以提高性能
-        const maxSize = 300;
         let { width, height } = img;
+        const originalWidth = width;
+        const originalHeight = height;
+
+        // 智能缩放：如果图像过大影响性能，则适当缩放，但不强制裁剪
+        const maxSize = 800; // 提高最大尺寸限制
+        let shouldScale = false;
+        let scaleRatio = 1;
 
         if (width > maxSize || height > maxSize) {
-            const ratio = Math.min(maxSize / width, maxSize / height);
-            width = Math.floor(width * ratio);
-            height = Math.floor(height * ratio);
+            scaleRatio = Math.min(maxSize / width, maxSize / height);
+            width = Math.floor(width * scaleRatio);
+            height = Math.floor(height * scaleRatio);
+            shouldScale = true;
         }
 
         canvas.width = width;
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
 
-        // 使用缩放后的canvas作为原始图像显示，确保与压缩图像尺寸一致
+        // 使用缩放后的canvas作为原始图像显示
         this.originalImage.src = canvas.toDataURL('image/png');
         this.originalImageData = ctx.getImageData(0, 0, width, height);
 
+        // 检测图像类型
+        const imageType = ImageProcessor.detectImageType(this.originalImageData);
+        const imageTypeText = imageType === 'grayscale' ? '黑白图像' : '彩色图像';
+
         // 更新显示信息
+        if (shouldScale) {
+            this.originalSize.textContent = `${originalWidth} × ${originalHeight} (缩放至 ${width} × ${height})`;
+        } else {
         this.originalSize.textContent = `${width} × ${height}`;
+        }
         this.originalFileSize.textContent = this.formatFileSize(file.size);
+        this.imageType.textContent = imageTypeText;
 
         // 显示原始图像和信息
         this.uploadArea.style.display = 'none';
@@ -501,13 +519,18 @@ class ImageCompressorApp {
         // 显示加载指示器
         this.loading.style.display = 'block';
         this.compressBtn.disabled = true;
+        
+        const startTime = performance.now();
         this.updateProgress(0, '开始压缩...');
 
         try {
             const compressionRatio = parseInt(this.compressionSlider.value);
-
-            // 获取压缩方式
             const compressionMethod = document.querySelector('input[name="compressionMethod"]:checked').value;
+
+            // 显示图像信息
+            const { width, height } = this.originalImageData;
+            const totalPixels = width * height;
+            console.log(`开始压缩图像: ${width}×${height} = ${totalPixels} 像素`);
 
             // 执行SVD压缩，带进度回调
             const result = await ImageProcessor.compressImage(
@@ -517,6 +540,10 @@ class ImageCompressorApp {
                 (progress, message) => this.updateProgress(progress, message)
             );
 
+            const endTime = performance.now();
+            const processingTime = ((endTime - startTime) / 1000).toFixed(2);
+            console.log(`压缩完成，耗时: ${processingTime}秒`);
+
             // 将压缩后的图像数据转换为可显示的格式
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -525,7 +552,9 @@ class ImageCompressorApp {
             canvas.height = this.originalImageData.height;
             ctx.putImageData(result.imageData, 0, 0);
 
-            this.compressedImage.src = canvas.toDataURL('image/png');
+            // 使用JPEG格式保存压缩后的图像，优化文件大小
+            const jpegQuality = this.calculateOptimalJPEGQuality(compressionRatio, result);
+            this.compressedImage.src = canvas.toDataURL('image/jpeg', jpegQuality);
             this.compressedImageData = result.imageData;
 
             // 隐藏占位图，显示压缩结果
@@ -535,22 +564,61 @@ class ImageCompressorApp {
             this.downloadSection.style.display = 'block';
 
             // 计算实际压缩后文件大小
-            const compressedSize = this.calculateCompressedSize(result.imageData);
-
-                    // 使用数据压缩比，不再计算文件大小压缩比
+            const compressedSize = this.calculateCompressedSize(result.imageData, jpegQuality);
+            const originalSize = this.originalFile ? this.originalFile.size : 0;
+            const actualCompressionRatio = originalSize > 0 ? (originalSize / compressedSize).toFixed(2) : 'N/A';
 
             // 计算均方误差
             const mse = ImageProcessor.calculateMSE(this.originalImageData, result.imageData);
 
             // 更新结果信息
-            this.retainedValues.textContent = `${result.retainedSingularValues} / ${result.totalSingularValues}`;
-            this.compressionRatioResult.textContent = result.compressionRatio; // 使用数据压缩比
+            if (result.compressionMethod === 'sum') {
+                const actualRatio = ((result.retainedSingularValues / result.totalSingularValues) * 100).toFixed(1);
+                this.retainedValues.textContent = `${result.retainedSingularValues} / ${result.totalSingularValues} (${actualRatio}%)`;
+            } else {
+                this.retainedValues.textContent = `${result.retainedSingularValues} / ${result.totalSingularValues}`;
+            }
+            
+            this.compressionRatioResult.textContent = result.compressionRatio;
+            this.fileCompressionRatio.textContent = actualCompressionRatio;
             this.mseResult.textContent = mse.toFixed(2);
             this.compressedFileSize.textContent = this.formatFileSize(compressedSize);
+
+            // 显示处理方式
+            const methodText = result.compressionMethod === 'count' ? '按奇异值个数占比' : '按奇异值之和占比';
+            const imageTypeText = result.imageType === 'grayscale' ? '黑白图像' : '彩色图像';
+            
+            // 在按奇异值之和占比模式下，显示更详细的信息
+            if (result.compressionMethod === 'sum') {
+                const actualRatio = ((result.retainedSingularValues / result.totalSingularValues) * 100).toFixed(1);
+                this.processingMethod.textContent = `${imageTypeText} - ${methodText} (实际使用${actualRatio}%的奇异值)`;
+            } else {
+                this.processingMethod.textContent = `${imageTypeText} - ${methodText}`;
+            }
 
             // 添加数据点到看板
             const singularValueRatio = (result.retainedSingularValues / result.totalSingularValues * 100);
             this.addDataPointToChart(singularValueRatio, parseFloat(result.compressionRatio), mse, result.compressionMethod);
+
+            // 显示性能信息
+            console.log(`图像类型: ${imageTypeText}`);
+            console.log(`压缩方式: ${methodText}`);
+            console.log(`处理时间: ${processingTime}秒`);
+            console.log(`数据压缩比: ${result.compressionRatio}`);
+            console.log(`实际文件压缩比: ${actualCompressionRatio}`);
+            console.log(`JPEG质量: ${jpegQuality.toFixed(2)}`);
+            
+            // 添加奇异值详细信息
+            if (result.compressionMethod === 'sum') {
+                const actualRatio = ((result.retainedSingularValues / result.totalSingularValues) * 100).toFixed(1);
+                console.log(`奇异值之和占比模式:`);
+                console.log(`  设置保留比例: ${compressionRatio}%`);
+                console.log(`  实际使用奇异值: ${result.retainedSingularValues} / ${result.totalSingularValues} (${actualRatio}%)`);
+            } else {
+                console.log(`奇异值个数占比模式:`);
+                console.log(`  设置保留比例: ${compressionRatio}%`);
+                console.log(`  实际使用奇异值: ${result.retainedSingularValues} / ${result.totalSingularValues}`);
+            }
 
         } catch (error) {
             console.error('压缩过程中出现错误:', error);
@@ -568,7 +636,7 @@ class ImageCompressorApp {
         this.loadingText.textContent = message;
     }
     
-    calculateCompressedSize(imageData) {
+    calculateCompressedSize(imageData, jpegQuality) {
         // 将ImageData转换为PNG格式的Blob来计算实际文件大小
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -578,7 +646,7 @@ class ImageCompressorApp {
         ctx.putImageData(imageData, 0, 0);
 
         // 使用同步方式获取数据URL并估算大小
-        const dataURL = canvas.toDataURL('image/png');
+        const dataURL = canvas.toDataURL('image/jpeg', jpegQuality);
 
         // 从data URL计算大小（去掉data:image/png;base64,前缀）
         const base64String = dataURL.split(',')[1];
@@ -600,17 +668,23 @@ class ImageCompressorApp {
         canvas.height = this.compressedImageData.height;
         ctx.putImageData(this.compressedImageData, 0, 0);
         
-        // 创建下载链接
+        // 获取当前压缩设置
+        const compressionRatio = parseInt(this.compressionSlider.value);
+        const jpegQuality = this.calculateOptimalJPEGQuality(compressionRatio, {
+            imageType: this.imageType.textContent.includes('黑白') ? 'grayscale' : 'rgb'
+        });
+        
+        // 创建下载链接，使用JPEG格式以减小文件大小
         canvas.toBlob((blob) => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'compressed_image.png';
+            a.download = 'compressed_image.jpg';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-        }, 'image/png');
+        }, 'image/jpeg', jpegQuality);
     }
     
     formatFileSize(bytes) {
@@ -621,6 +695,32 @@ class ImageCompressorApp {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    calculateOptimalJPEGQuality(compressionRatio, result) {
+        const jpegQuality = Math.max(0.3, compressionRatio / 100);
+        const imageType = result.imageType;
+        const totalSingularValues = result.totalSingularValues;
+        const retainedSingularValues = result.retainedSingularValues;
+
+                 // 如果图像类型是彩色，且压缩比例较低，则降低质量以减少文件大小
+         if (imageType === 'rgb' && compressionRatio < 20) {
+             return Math.max(0.1, jpegQuality * 0.7); // 降低质量
+         }
+         // 如果图像类型是彩色，且压缩比例较高，则提高质量以保持图像质量
+         if (imageType === 'rgb' && compressionRatio > 50) {
+             return Math.min(0.9, jpegQuality * 1.2); // 提高质量
+         }
+         // 如果图像类型是黑白，且压缩比例较低，则降低质量
+         if (imageType === 'grayscale' && compressionRatio < 10) {
+             return Math.max(0.1, jpegQuality * 0.8); // 降低质量
+         }
+         // 如果图像类型是黑白，且压缩比例较高，则提高质量
+         if (imageType === 'grayscale' && compressionRatio > 30) {
+             return Math.min(0.9, jpegQuality * 1.1); // 提高质量
+         }
+
+        return jpegQuality;
     }
 }
 

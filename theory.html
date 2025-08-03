@@ -162,6 +162,83 @@
             font-style: italic;
         }
 
+        /* 流程图图片容器样式 */
+        
+        .flowchart-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            transition: transform 0.3s ease;
+            transform-origin: center center;
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            pointer-events: auto;
+        }
+        
+        .flowchart-image:active {
+            cursor: grabbing;
+        }
+        
+        .flowchart-container {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .flowchart-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 20;
+        }
+        
+        .control-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .control-btn:active {
+            transform: translateY(0);
+        }
+        
+        .zoom-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 20;
+        }
+        
+        /* 响应式设计 */
         @media (max-width: 768px) {
             .theory-container {
                 padding: 10px;
@@ -299,6 +376,33 @@
             <section class="section">
                 <h2>图像压缩中的应用</h2>
                 
+                <h3>SVD图像压缩流程图</h3>
+                <p>下面是完整的SVD图像压缩处理流程，展示了从图像输入到压缩输出的全过程。流程图清晰地展示了灰度图像和彩色图像的不同处理路径：</p>
+                
+                <div class="highlight-box">
+                    <p><strong>流程说明：</strong></p>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li><strong>图像预处理：</strong>读取图像并转换为数字矩阵表示</li>
+                        <li><strong>类型判断：</strong>自动检测图像是灰度图还是彩色图</li>
+                        <li><strong>通道分离：</strong>彩色图像分离为RGB三个独立通道</li>
+                        <li><strong>SVD分解：</strong>对每个通道进行奇异值分解</li>
+                        <li><strong>压缩重构：</strong>保留部分奇异值重构压缩后的图像</li>
+                        <li><strong>结果输出：</strong>保存压缩后的图像文件</li>
+                    </ul>
+                </div>
+                
+                <div class="formula-box" style="text-align: left; padding: 30px;">
+                    <div class="flowchart-container">
+                        <div class="flowchart-controls">
+                            <button class="control-btn" id="zoomIn">放大</button>
+                            <button class="control-btn" id="zoomOut">缩小</button>
+                            <button class="control-btn" id="resetZoom">重置</button>
+                        </div>
+                        <div class="zoom-info">缩放: 100%</div>
+                        <img src="diagram.png" alt="SVD图像压缩流程图" class="flowchart-image" id="flowchart">
+                    </div>
+                </div>
+                
                 <h3>彩色图像处理</h3>
                 <p>对于彩色图像，我们将其分解为红(R)、绿(G)、蓝(B)三个颜色通道，每个通道都是一个二维矩阵。对每个颜色通道分别进行SVD分解：</p>
 
@@ -366,8 +470,6 @@
                 <div class="highlight-box">
                     <p><strong>偏置项意义：</strong>用户偏置反映了用户的评分习惯（如严格或宽松），物品偏置反映了物品的整体质量水平，这使得预测更加准确和个性化。</p>
                 </div>
-
-
             </section>
 
             <div style="text-align: center;">
@@ -379,5 +481,114 @@
             <p>基于奇异值分解(SVD)的图像压缩算法原理详解</p>
         </footer>
     </div>
+
+    <script>
+        // 流程图图片缩放控制
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageContainer = document.getElementById('flowchart');
+            const zoomInBtn = document.getElementById('zoomIn');
+            const zoomOutBtn = document.getElementById('zoomOut');
+            const resetZoomBtn = document.getElementById('resetZoom');
+            const zoomInfo = document.querySelector('.zoom-info');
+            
+            let currentScale = 1;
+            let currentTranslateX = 0;
+            let currentTranslateY = 0;
+            
+            // 初始化
+            imageContainer.style.cursor = 'grab';
+            updateTransform();
+            console.log('流程图图片已加载');
+            
+            // 缩放功能
+            function updateTransform() {
+                const transform = `translate(${currentTranslateX}, ${currentTranslateY}) scale(${currentScale})`;
+                imageContainer.style.transform = transform;
+                zoomInfo.textContent = `缩放: ${Math.round(currentScale * 100)}%`;
+            }
+            
+            // 放大按钮
+            zoomInBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (currentScale < 3) {
+                    currentScale *= 1.2;
+                    updateTransform();
+                }
+            });
+            
+            // 缩小按钮
+            zoomOutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (currentScale > 0.3) {
+                    currentScale /= 1.2;
+                    updateTransform();
+                }
+            });
+            
+            // 重置按钮
+            resetZoomBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                currentScale = 1;
+                currentTranslateX = 0;
+                currentTranslateY = 0;
+                updateTransform();
+            });
+            
+            // 鼠标滚轮缩放
+            imageContainer.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                const newScale = currentScale * delta;
+                
+                if (newScale >= 0.3 && newScale <= 3) {
+                    currentScale = newScale;
+                    updateTransform();
+                }
+            });
+            
+            // 鼠标拖拽平移
+            let isDragging = false;
+            let startX, startY;
+            let startTranslateX, startTranslateY;
+            
+            imageContainer.addEventListener('mousedown', function(e) {
+                // 检查是否点击在控制按钮上
+                if (e.target.closest('.flowchart-controls')) {
+                    return;
+                }
+                
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startTranslateX = currentTranslateX;
+                startTranslateY = currentTranslateY;
+                imageContainer.style.cursor = 'grabbing';
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    const deltaX = e.clientX - startX;
+                    const deltaY = e.clientY - startY;
+                    currentTranslateX = startTranslateX + deltaX;
+                    currentTranslateY = startTranslateY + deltaY;
+                    updateTransform();
+                    e.preventDefault();
+                }
+            });
+            
+            document.addEventListener('mouseup', function(e) {
+                if (isDragging) {
+                    isDragging = false;
+                    imageContainer.style.cursor = 'grab';
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
 </body>
 </html>

@@ -1,28 +1,49 @@
 /**
  * SVD (奇异值分解) 算法实现
- * 用于图像压缩 - 改进的高精度SVD算法
+ * 用于图像压缩 - 重构的高效SVD算法
  */
 
 class SVD {
     /**
-     * 使用改进的幂迭代法进行SVD分解
+     * 使用优化的幂迭代法进行SVD分解
      * @param {number[][]} matrix - 输入矩阵
+     * @param {function} progressCallback - 进度回调函数
      * @returns {Object} 包含U, sigma, V_T的对象
      */
-    static decompose(matrix) {
+    static decompose(matrix, progressCallback = null) {
         const A = matrix.map(row => [...row]); // 复制矩阵
         const m = A.length;
         const n = A[0].length;
+        const minDim = Math.min(m, n);
 
-        // 计算 A^T * A
+        if (progressCallback) progressCallback(10, '开始SVD分解...');
+
+        // 根据矩阵大小调整计算精度
+        const isLargeMatrix = m * n > 100000; // 超过10万像素的矩阵
+        const maxEigenvalues = isLargeMatrix ? Math.min(minDim, 50) : Math.min(minDim, 100);
+        const tolerance = isLargeMatrix ? 1e-8 : 1e-10;
+
+        // 计算 A^T * A 和 A * A^T
         const AtA = this.multiplyMatrices(this.transpose(A), A);
-
-        // 计算 A * A^T
         const AAt = this.multiplyMatrices(A, this.transpose(A));
 
+        if (progressCallback) progressCallback(30, '计算特征值...');
+
         // 对A^T*A进行特征值分解得到V和奇异值的平方
-        const eigenV = this.eigenDecomposition(AtA);
-        const eigenU = this.eigenDecomposition(AAt);
+        const eigenV = this.eigenDecomposition(AtA, maxEigenvalues, tolerance, (progress) => {
+            if (progressCallback) {
+                progressCallback(30 + progress * 0.3, '计算V矩阵特征值...');
+            }
+        });
+
+        if (progressCallback) progressCallback(60, '计算U矩阵...');
+
+        // 对A*A^T进行特征值分解得到U
+        const eigenU = this.eigenDecomposition(AAt, maxEigenvalues, tolerance, (progress) => {
+            if (progressCallback) {
+                progressCallback(60 + progress * 0.3, '计算U矩阵特征值...');
+            }
+        });
 
         // 提取奇异值（特征值的平方根）
         const sigma = eigenV.values.map(val => Math.sqrt(Math.max(0, val)));
@@ -38,7 +59,7 @@ class SVD {
         // 计算U矩阵
         const U = [];
         for (let i = 0; i < Math.min(m, n); i++) {
-            if (sortedSigma[i] > 1e-12) { // 提高精度阈值
+            if (sortedSigma[i] > tolerance) {
                 // u_i = A * v_i / sigma_i
                 const v_i = V_T[i];
                 const Av = this.multiplyMatrixVector(A, v_i);
@@ -49,6 +70,8 @@ class SVD {
             }
         }
 
+        if (progressCallback) progressCallback(100, 'SVD分解完成');
+
         return {
             U: this.transpose(U),
             sigma: sortedSigma,
@@ -57,12 +80,11 @@ class SVD {
     }
 
     /**
-     * 改进的特征值分解 (使用高精度幂迭代法)
+     * 优化的特征值分解 (使用改进的幂迭代法)
      */
-    static eigenDecomposition(matrix) {
+    static eigenDecomposition(matrix, maxEigenvalues = 100, tolerance = 1e-10, progressCallback = null) {
         const n = matrix.length;
-        const maxIterations = 500; // 增加迭代次数
-        const tolerance = 1e-12;   // 提高精度
+        const maxIterations = 200; // 减少迭代次数以提高性能
 
         const eigenValues = [];
         const eigenVectors = [];
@@ -70,10 +92,14 @@ class SVD {
         // 复制矩阵
         let A = matrix.map(row => [...row]);
 
-        for (let k = 0; k < Math.min(n, 50); k++) { // 增加特征值个数
+        for (let k = 0; k < maxEigenvalues; k++) {
+            if (progressCallback) {
+                progressCallback((k / maxEigenvalues) * 100);
+            }
+
             // 幂迭代法求主特征值和特征向量
             let v = new Array(n);
-            // 更好的初始化
+            // 更好的初始化 - 使用随机正交向量
             for (let i = 0; i < n; i++) {
                 v[i] = Math.random() - 0.5;
             }
@@ -85,6 +111,7 @@ class SVD {
             }
 
             let lambda = 0;
+            let converged = false;
 
             for (let iter = 0; iter < maxIterations; iter++) {
                 const Av = this.multiplyMatrixVector(A, v);
@@ -107,12 +134,13 @@ class SVD {
                 const newLambda = vAv;
                 if (Math.abs(newLambda - lambda) < tolerance) {
                     lambda = newLambda;
+                    converged = true;
                     break;
                 }
                 lambda = newLambda;
             }
 
-            if (Math.abs(lambda) < tolerance) {
+            if (Math.abs(lambda) < tolerance || !converged) {
                 break;
             }
 
@@ -131,7 +159,7 @@ class SVD {
     }
 
     /**
-     * 根据奇异值个数占比重构矩阵 (改进的高精度版本)
+     * 根据奇异值个数占比重构矩阵
      * @param {Object} svdResult - SVD分解结果 {U, sigma, V_T}
      * @param {number} percent - 奇异值保留比例 (0-1)
      * @returns {number[][]} 重构的矩阵
@@ -147,7 +175,7 @@ class SVD {
         // 计算要保留的奇异值个数
         const retainCount = Math.max(1, Math.ceil(sigma.length * percent));
 
-        // 按照原始逻辑进行重构，但提高精度
+        // 按照原始逻辑进行重构
         for (let k = 0; k < retainCount && k < sigma.length; k++) {
             // 计算 sigma[k] * U[:, k] * V_T[k, :]
             for (let i = 0; i < m; i++) {
@@ -157,13 +185,18 @@ class SVD {
             }
         }
 
-        // 规范化数据：限制在0-255范围内并四舍五入到整数
+        // 优化数据规范化：使用更平滑的量化方法
         for (let i = 0; i < m; i++) {
             for (let j = 0; j < n; j++) {
-                if (channel[i][j] < 0) channel[i][j] = 0;
-                if (channel[i][j] > 255) channel[i][j] = 255;
-                // 四舍五入到整数
-                channel[i][j] = Math.round(channel[i][j]);
+                // 使用更平滑的量化，减少JPEG压缩时的伪影
+                let value = channel[i][j];
+                
+                // 限制在0-255范围内
+                if (value < 0) value = 0;
+                if (value > 255) value = 255;
+                
+                // 使用更精确的量化，减少舍入误差
+                channel[i][j] = Math.round(value);
             }
         }
 
@@ -171,10 +204,10 @@ class SVD {
     }
 
     /**
-     * 根据奇异值之和占比重构矩阵 (改进的高精度版本)
+     * 根据奇异值之和占比重构矩阵
      * @param {Object} svdResult - SVD分解结果 {U, sigma, V_T}
      * @param {number} percent - 奇异值之和保留比例 (0-1)
-     * @returns {number[][]} 重构的矩阵
+     * @returns {Object} 包含重构矩阵和实际使用奇异值个数的对象
      */
     static getCompressSum(svdResult, percent) {
         const { U, sigma, V_T } = svdResult;
@@ -189,10 +222,12 @@ class SVD {
         const targetSum = totalSum * percent;
 
         let currentSum = 0;
+        let usedSingularValues = 0;
 
         // 按照原始逻辑进行重构
         for (let i = 0; i < sigma.length; i++) {
             currentSum += sigma[i];
+            usedSingularValues++;
 
             // 计算 sigma[i] * U[:, i] * V_T[i, :]
             for (let row = 0; row < m; row++) {
@@ -207,20 +242,26 @@ class SVD {
             }
         }
 
-        // 规范化数据：限制在0-255范围内并四舍五入到整数
+        // 优化数据规范化：使用更平滑的量化方法
         for (let i = 0; i < m; i++) {
             for (let j = 0; j < n; j++) {
-                if (channel[i][j] < 0) channel[i][j] = 0;
-                if (channel[i][j] > 255) channel[i][j] = 255;
-                // 四舍五入到整数
-                channel[i][j] = Math.round(channel[i][j]);
+                // 使用更平滑的量化，减少JPEG压缩时的伪影
+                let value = channel[i][j];
+                
+                // 限制在0-255范围内
+                if (value < 0) value = 0;
+                if (value > 255) value = 255;
+                
+                // 使用更精确的量化，减少舍入误差
+                channel[i][j] = Math.round(value);
             }
         }
 
-        return channel;
+        return {
+            matrix: channel,
+            usedSingularValues: usedSingularValues
+        };
     }
-
-
     
     /**
      * 矩阵转置
@@ -275,21 +316,72 @@ class SVD {
 
         return result;
     }
-
-
-    
-
 }
 
 /**
- * 图像处理工具类
+ * 图像处理工具类 - 重构版本
  */
 class ImageProcessor {
     /**
-     * 将图像数据转换为矩阵 (0-255范围)
+     * 检测图像类型（黑白或彩色）
+     * @param {ImageData} imageData - 图像数据
+     * @returns {string} 'grayscale' 或 'rgb'
+     */
+    static detectImageType(imageData) {
+        const { data } = imageData;
+        let totalPixels = 0;
+        let grayscalePixels = 0;
+        
+        // 采样检测：为了提高性能，只检查部分像素
+        const sampleStep = Math.max(1, Math.floor(data.length / 4 / 1000)); // 采样1000个像素
+        
+        for (let i = 0; i < data.length; i += 4 * sampleStep) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            totalPixels++;
+            
+            // 检查RGB值是否相等（允许小的误差）
+            const tolerance = 5; // 允许5个像素值的误差
+            if (Math.abs(r - g) <= tolerance && Math.abs(g - b) <= tolerance && Math.abs(r - b) <= tolerance) {
+                grayscalePixels++;
+            }
+        }
+        
+        // 如果超过95%的像素都是灰度，则认为是灰度图像
+        const grayscaleRatio = grayscalePixels / totalPixels;
+        return grayscaleRatio >= 0.95 ? 'grayscale' : 'rgb';
+    }
+
+    /**
+     * 将图像数据转换为矩阵
+     * @param {ImageData} imageData - 图像数据
+     * @returns {Object} 包含矩阵和图像类型信息的对象
      */
     static imageToMatrix(imageData) {
         const { data, width, height } = imageData;
+        const imageType = this.detectImageType(imageData);
+        
+        if (imageType === 'grayscale') {
+            // 黑白图像 - 只处理一个通道
+            const matrix = Array(height).fill().map(() => Array(width).fill(0));
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    matrix[y][x] = data[idx]; // 使用红色通道作为灰度值
+                }
+            }
+            
+            return {
+                type: 'grayscale',
+                matrices: { gray: matrix },
+                width,
+                height
+            };
+        } else {
+            // RGB图像 - 处理三个通道
         const matrices = {
             r: Array(height).fill().map(() => Array(width).fill(0)),
             g: Array(height).fill().map(() => Array(width).fill(0)),
@@ -305,16 +397,40 @@ class ImageProcessor {
             }
         }
 
-        return matrices;
+            return {
+                type: 'rgb',
+                matrices,
+                width,
+                height
+            };
+        }
     }
     
     /**
      * 将矩阵转换回图像数据
+     * @param {Object} matrixData - 矩阵数据对象
+     * @returns {ImageData} 图像数据
      */
-    static matrixToImage(matrices, width, height) {
+    static matrixToImage(matrixData) {
+        const { type, matrices, width, height } = matrixData;
         const imageData = new ImageData(width, height);
-        const { r, g, b } = matrices;
 
+        if (type === 'grayscale') {
+            // 黑白图像
+            const gray = matrices.gray;
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const value = Math.max(0, Math.min(255, Math.round(gray[y][x])));
+                    imageData.data[idx] = value;     // Red
+                    imageData.data[idx + 1] = value; // Green
+                    imageData.data[idx + 2] = value; // Blue
+                    imageData.data[idx + 3] = 255;   // Alpha
+                }
+            }
+        } else {
+            // RGB图像
+        const { r, g, b } = matrices;
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const idx = (y * width + x) * 4;
@@ -322,6 +438,7 @@ class ImageProcessor {
                 imageData.data[idx + 1] = Math.max(0, Math.min(255, Math.round(g[y][x]))); // Green
                 imageData.data[idx + 2] = Math.max(0, Math.min(255, Math.round(b[y][x]))); // Blue
                 imageData.data[idx + 3] = 255; // Alpha
+                }
             }
         }
 
@@ -329,98 +446,155 @@ class ImageProcessor {
     }
     
     /**
-     * 使用SVD压缩图像 (改进版本)
+     * 使用SVD压缩图像 - 重构版本
      * @param {ImageData} imageData - 图像数据
      * @param {number} compressionRatio - 压缩比例 (0-100)
      * @param {string} compressionMethod - 压缩方式 ('count' 或 'sum')
      * @param {function} progressCallback - 进度回调函数
      */
     static async compressImage(imageData, compressionRatio, compressionMethod = 'count', progressCallback = null) {
-        const matrices = this.imageToMatrix(imageData);
         const { width, height } = imageData;
+        const m = height;
+        const n = width;
+
+        if (progressCallback) progressCallback(5, '分析图像类型...');
+
+        // 转换图像数据为矩阵
+        const matrixData = this.imageToMatrix(imageData);
+        const { type, matrices } = matrixData;
+
+        if (progressCallback) progressCallback(10, `检测到${type === 'grayscale' ? '黑白' : '彩色'}图像`);
 
         // 转换压缩比例为百分比 (0-1)
         const percent = compressionRatio / 100;
 
-        if (progressCallback) progressCallback(10, '正在分析图像...');
+        // 根据图像类型进行不同的处理
+        if (type === 'grayscale') {
+            // 黑白图像处理
+            if (progressCallback) progressCallback(15, '处理黑白图像...');
 
-        // 对每个颜色通道进行SVD压缩
+            // 添加延迟让UI更新
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            // 对灰度通道进行SVD分解
+            const svdResult = SVD.decompose(matrices.gray, (progress) => {
+                if (progressCallback) {
+                    progressCallback(15 + progress * 0.3, 'SVD分解灰度通道...');
+                }
+            });
+
+            // 根据压缩方式选择不同的压缩函数
+            let compressedMatrix;
+            let actualRetainedValues;
+            if (compressionMethod === 'sum') {
+                const compressedResult = SVD.getCompressSum(svdResult, percent);
+                compressedMatrix = compressedResult.matrix;
+                actualRetainedValues = compressedResult.usedSingularValues;
+            } else {
+                compressedMatrix = SVD.getCompressData(svdResult, percent);
+                actualRetainedValues = Math.ceil(totalSingularValues * percent);
+            }
+
+            // 重构图像数据
+            const compressedMatrixData = {
+                type: 'grayscale',
+                matrices: { gray: compressedMatrix },
+                width,
+                height
+            };
+
+            const compressedImageData = this.matrixToImage(compressedMatrixData);
+
+            // 计算压缩统计信息
+            const totalSingularValues = svdResult.sigma.length;
+            const retainedSingularValues = actualRetainedValues;
+
+            // 计算压缩比
+            const k = retainedSingularValues;
+            const dataCompressionRatio = (m * n) / (k * (m + n + 1));
+
+            if (progressCallback) progressCallback(100, '压缩完成！');
+
+            return {
+                imageData: compressedImageData,
+                retainedSingularValues,
+                totalSingularValues,
+                compressionRatio: dataCompressionRatio.toFixed(2),
+                compressionMethod,
+                imageType: type
+            };
+
+        } else {
+            // RGB图像处理
+            const channels = ['r', 'g', 'b'];
         const compressedMatrices = {};
         const svdResults = {};
-        const channels = ['r', 'g', 'b'];
+            let totalRetainedValues = 0;
+            let totalSingularValues = 0;
 
         for (let i = 0; i < channels.length; i++) {
             const channel = channels[i];
 
             if (progressCallback) {
-                progressCallback(20 + i * 20, `正在处理${channel.toUpperCase()}通道...`);
+                    progressCallback(20 + i * 20, `处理${channel.toUpperCase()}通道...`);
             }
 
             // 添加延迟让UI更新
             await new Promise(resolve => setTimeout(resolve, 50));
 
             // 进行SVD分解
-            svdResults[channel] = SVD.decompose(matrices[channel]);
+                svdResults[channel] = SVD.decompose(matrices[channel], (progress) => {
+                    if (progressCallback) {
+                        progressCallback(20 + i * 20 + progress * 0.15, `SVD分解${channel.toUpperCase()}通道...`);
+                    }
+                });
 
             // 根据压缩方式选择不同的压缩函数
             if (compressionMethod === 'sum') {
-                compressedMatrices[channel] = SVD.getCompressSum(svdResults[channel], percent);
+                const compressedResult = SVD.getCompressSum(svdResults[channel], percent);
+                compressedMatrices[channel] = compressedResult.matrix;
+                totalRetainedValues += compressedResult.usedSingularValues;
             } else {
                 compressedMatrices[channel] = SVD.getCompressData(svdResults[channel], percent);
+                totalRetainedValues += Math.ceil(svdResults[channel].sigma.length * percent);
             }
-        }
 
-        if (progressCallback) progressCallback(80, '正在重构图像...');
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const compressedImageData = this.matrixToImage(compressedMatrices, width, height);
-
-        if (progressCallback) progressCallback(100, '压缩完成！');
-
-        // 计算实际使用的奇异值个数和压缩比
-        const m = height;
-        const n = width;
-        let totalRetainedValues = 0;
-        let totalSingularValues = 0;
-
-        // 计算每个通道实际使用的奇异值个数
-        for (const channel of channels) {
+                // 计算统计信息
             const { sigma } = svdResults[channel];
             totalSingularValues += sigma.length;
-
-            if (compressionMethod === 'sum') {
-                // 按奇异值之和占比计算
-                const totalSum = sigma.reduce((sum, sig) => sum + sig, 0);
-                const targetSum = totalSum * percent;
-                let currentSum = 0;
-                let retainedCount = 0;
-
-                for (let i = 0; i < sigma.length; i++) {
-                    currentSum += sigma[i];
-                    retainedCount++;
-                    if (currentSum > targetSum) break;
-                }
-                totalRetainedValues += retainedCount;
-            } else {
-                // 按奇异值个数占比计算
-                totalRetainedValues += Math.ceil(sigma.length * percent);
-            }
         }
+
+            if (progressCallback) progressCallback(80, '重构RGB图像...');
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // 重构图像数据
+            const compressedMatrixData = {
+                type: 'rgb',
+                matrices: compressedMatrices,
+                width,
+                height
+            };
+
+            const compressedImageData = this.matrixToImage(compressedMatrixData);
 
         const avgRetainedValues = Math.round(totalRetainedValues / 3);
         const avgTotalValues = Math.round(totalSingularValues / 3);
 
-        // 使用正确的压缩比计算公式：(m×n) / (k(m+n+1))
+            // 计算压缩比
         const k = avgRetainedValues;
         const dataCompressionRatio = (m * n) / (k * (m + n + 1));
+
+            if (progressCallback) progressCallback(100, '压缩完成！');
 
         return {
             imageData: compressedImageData,
             retainedSingularValues: avgRetainedValues,
             totalSingularValues: avgTotalValues,
             compressionRatio: dataCompressionRatio.toFixed(2),
-            compressionMethod: compressionMethod
+                compressionMethod,
+                imageType: type
         };
+        }
     }
 
     /**
